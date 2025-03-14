@@ -33,7 +33,7 @@ static const struct superblock_info fs_superblock = {
     .free_inodes = FS_FREE_INODES
 };
 
-struct file
+struct file_object
 {
     char name[FS_MAX_LEN]; //file name
     uint8_t size; //file size
