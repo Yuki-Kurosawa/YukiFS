@@ -30,12 +30,13 @@ static const struct superblock_info fs_superblock = {
     .free_inodes = FS_FREE_INODES
 };
 
-struct file_table
+struct file
 {
     char name[FS_MAX_LEN]; //file name
     uint8_t size; //file size
+    int inner_file;// determine the file is a builtin file.
     int descriptor; // the drwxrwxrwx thing, permissions & descriptors
-    int first_block;
+    unsigned int first_block;
 };
 
 #endif
