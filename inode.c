@@ -8,6 +8,7 @@
 #include <linux/statfs.h>
 #include "internal.h"
 #include "version.h"
+#include "file_table.h"
 
 #pragma region  File Operations
 

@@ -20,7 +20,7 @@
 #define FS_BLOCK_AVAILABLE 0
 #define FS_TOTAL_INODES 1
 #define FS_FREE_INODES 0
-#define FS_MAX_LEN 8
+
 // end define superblock info
 
 struct yukifs_inode {
