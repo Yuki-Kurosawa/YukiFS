@@ -7,6 +7,8 @@
 #define YUKIFS_DESCRIPTION "YukiFS: A simple Linux filesystem made by Yuki Kurosawa"
 #define YUKIFS_LICENSE "MIT"
 
+unsigned char *version = YUKIFS_VERSION "\n";
+
 #define VERSION_H
 
 #endif // VERSION_H

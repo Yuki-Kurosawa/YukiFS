@@ -10,6 +10,10 @@ mount | grep yuki
 
 ls -alc fs
 touch fs/test.txt
+cat fs/version.txt
+cd fs/test_folder
+cd ../..
+file fs/version.txt
 
 df -kh fs
 umount fs
