@@ -12,3 +12,6 @@
 
 # Ignore build directories
 /build/
+
+mkfs.*
+*.img
