@@ -12,6 +12,9 @@
 #define FS_FREE_INODES 0
 // end define superblock info
 
+#define FILESYSTEM_MAGIC_NUMBER 0x59554B49 // FILESYSTEM MAGIC "YUKI"
+#define FILE_DEFAULT_PERMISSION 0755
+
 struct superblock_info {
     uint8_t block_size;
     uint8_t block_count;
