@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -5,6 +7,7 @@
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include "internal.h"
+#include "version.h"
 
 static struct inode *yukifs_make_inode(struct super_block *sb, int mode)
 {
@@ -98,6 +101,7 @@ static void __exit yukifs_exit(void)
 module_init(yukifs_init);
 module_exit(yukifs_exit);
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("GitHub Copilot");
-MODULE_DESCRIPTION("A simple filesystem with . and .. inodes");
+MODULE_LICENSE(YUKIFS_LICENSE);
+MODULE_AUTHOR(YUKIFS_AUTHOR);
+MODULE_DESCRIPTION(YUKIFS_DESCRIPTION);
+MODULE_VERSION(YUKIFS_VERSION);

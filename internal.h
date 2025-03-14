@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
@@ -16,7 +18,7 @@
 #define FS_BLOCK_COUNT 1 // dd count value
 #define FS_BLOCK_FREE 0
 #define FS_BLOCK_AVAILABLE 0
-#define FS_TOTAL_INODES 2
+#define FS_TOTAL_INODES 1
 #define FS_FREE_INODES 0
 #define FS_MAX_LEN 8
 // end define superblock info
