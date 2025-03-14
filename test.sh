@@ -1,7 +1,8 @@
 #! /bin/bash
 clear
 make 
-insmod inode.ko
+modinfo yukifs.ko
+insmod yukifs.ko
 mkdir fs
 cat /proc/filesystems | grep yuki
 mount -t yuki yuki fs
@@ -13,5 +14,5 @@ touch fs/test.txt
 df -kh fs
 umount fs
 rm -rvf fs
-rmmod inode.ko
+rmmod yukifs.ko
 make clean
