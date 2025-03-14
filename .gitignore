@@ -1,0 +1,14 @@
+# Ignore object files, shared libraries, and kernel modules
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+*.order
+*.markers
+
+# Ignore temporary files
+*.tmp
+
+# Ignore build directories
+/build/
