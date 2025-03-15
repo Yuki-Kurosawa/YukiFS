@@ -10,6 +10,15 @@
 #include "version.h"
 #include "file_table.h"
 
+// define a tiny superblock info
+#define FS_BLOCK_SIZE 1 // dd bs value
+#define FS_BLOCK_COUNT 1 // dd count value
+#define FS_BLOCK_FREE 0
+#define FS_BLOCK_AVAILABLE 0
+#define FS_TOTAL_INODES 1
+#define FS_FREE_INODES 0
+// end define superblock info
+
 #pragma region  File Operations
 
 static int yukifs_open(struct inode *inode, struct file *filp)

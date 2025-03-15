@@ -3,34 +3,27 @@
 
 #define FS_MAX_LEN 8
 
-// define a tiny superblock info
-#define FS_BLOCK_SIZE 1 // dd bs value
-#define FS_BLOCK_COUNT 1 // dd count value
-#define FS_BLOCK_FREE 0
-#define FS_BLOCK_AVAILABLE 0
-#define FS_TOTAL_INODES 1
-#define FS_FREE_INODES 0
-// end define superblock info
-
 #define FILESYSTEM_MAGIC_NUMBER 0x59554B49 // FILESYSTEM MAGIC "YUKI"
+#define FILESYSTEM_MAGIC_BYTES {0x59,0x55,0x4B,0x49,0x00,0x00,0x00,0x00} // FILESYSTEM MAGIC "YUKI" FOR SUPERBLOCK INFO STRUCT
 #define FILE_DEFAULT_PERMISSION 0755
+#define FILE_OBJECT_ALIGN_SIZE 32
+#define SUPER_BLOCK_ALIGN_SIZE 512
+#define MINIMAL_BLOCK_SIZE 512
+#define MAXIMUM_BLOCK_SIZE 2048
+#define INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices.
+                       // like /dev/sda1 or /opt/yukifs/fsimage.img
+#define ACTUAL_FS_BLOCK_SIZE 512 // this value will be calculated by mkfs.yukifs with the actual devices.
+                                 // like /dev/sda1 or /opt/yukifs/fsimage.img
+
 
 struct superblock_info {
+    unsigned char magic_number[8];
     uint8_t block_size;
     uint8_t block_count;
     uint8_t block_free;
     uint8_t block_available;
     uint8_t total_inodes;
     uint8_t free_inodes;
-};
-
-static const struct superblock_info fs_superblock = {
-    .block_size = FS_BLOCK_SIZE,
-    .block_count = FS_BLOCK_COUNT,
-    .block_free = FS_BLOCK_FREE,
-    .block_available = FS_BLOCK_AVAILABLE,
-    .total_inodes = FS_TOTAL_INODES,
-    .free_inodes = FS_FREE_INODES
 };
 
 struct file_object
@@ -40,6 +33,15 @@ struct file_object
     int inner_file;// determine the file is a builtin file.
     int descriptor; // the drwxrwxrwx thing, permissions & descriptors
     unsigned int first_block;
+};
+
+struct data_struct_before_actual_data
+{
+    unsigned char FS_PADDING[1024];
+    unsigned char HIDDEN_INFO_FOR_FS[ACTUAL_FS_BLOCK_SIZE];
+    unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];
+    unsigned char INODE_TABLES[FILE_OBJECT_ALIGN_SIZE*INODE_COUNTS];
+    
 };
 
 #endif
