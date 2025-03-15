@@ -10,10 +10,13 @@
 #define SUPER_BLOCK_ALIGN_SIZE 512
 #define MINIMAL_BLOCK_SIZE 512
 #define MAXIMUM_BLOCK_SIZE 2048
-#define INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices.
-                       // like /dev/sda1 or /opt/yukifs/fsimage.img
-#define ACTUAL_FS_BLOCK_SIZE 512 // this value will be calculated by mkfs.yukifs with the actual devices.
+#define MAX_INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices
+                           // like /dev/sda1 or /opt/yukifs/fsimage.img
+                           // writes to superblock_info.total_inodes
+#define ACTUAL_FS_BLOCK_SIZE 512 // this value will be calculated by mkfs.yukifs with the actual devices
                                  // like /dev/sda1 or /opt/yukifs/fsimage.img
+                                 // writes to superblock_info.block_size
+                                 // then calcuate and write superblock_info.block_count with calcuations with size of devices/images minus size of the data_struct_before_actual_data object
 
 
 struct superblock_info {
@@ -35,6 +38,7 @@ struct file_object
     unsigned int first_block;
 };
 
+//this struct is write to device/image directly begin from byte 0 of the device/image
 struct data_struct_before_actual_data
 {
     unsigned char FS_PADDING[1024];
