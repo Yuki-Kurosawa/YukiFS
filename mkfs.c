@@ -31,6 +31,17 @@ void print_usage(const char *prog_name) {
     printf("\n");
 }
 
+int get_device_type(const char* device_path)
+{
+    struct stat path_stat;
+   
+    if (stat(device_path, &path_stat) == -1) {
+        return 0; 
+    }
+
+    return path_stat.st_mode;
+}
+
 void gen_hidden_data(unsigned char data[], uint32_t block_size)
 {
     memset(data, 0x30, block_size);
@@ -152,12 +163,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Prevent specific device names
-    if (strcmp(device_path, "/dev/null") == 0 ||
-        strcmp(device_path, "/dev/zero") == 0 ||
-        strcmp(device_path, "/dev/random") == 0 ||
-        strcmp(device_path, "/dev/urandom") == 0) {
-        fprintf(stderr, "Error: Cannot use '%s' as a device for mkfs.\n", device_path);
+    // Prevent specific devices types
+    if (!S_ISBLK(get_device_type(device_path)) && !S_ISREG(get_device_type(device_path))) {
+        fprintf(stderr, "Error: Cannot use '%s' as a device or a image file for mkfs.\n", device_path);
         return 1;
     }
 

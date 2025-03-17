@@ -5,6 +5,7 @@ make -f Makefile.mkfs
 ./mkfs.yukifs -v
 ./mkfs.yukifs -h
 #./mkfs.yukifs -t test.img
+./mkfs.yukifs -t /dev/tty0
 ./mkfs.yukifs -y test.img
 make clean
 #rm -rf test.img

@@ -16,7 +16,8 @@
         "cwchar": "c",
         "type_traits": "c",
         "new": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "statfs.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
