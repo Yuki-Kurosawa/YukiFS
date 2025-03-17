@@ -33,7 +33,7 @@ void print_usage(const char *prog_name) {
 
 void gen_hidden_data(unsigned char data[], uint32_t block_size)
 {
-
+    memset(data, 0x30, block_size);
 }
 
 void gen_fs_padding_data(unsigned char padding[])
@@ -395,6 +395,7 @@ int main(int argc, char *argv[]) {
     if (!try_run) {
         printf("Writing initial header to the device/image...\n");
         // Write the header data (which now includes the padding at the beginning)
+        
         ssize_t bytes_written_header = write(fd, fs_header_data, actual_header_size);
         if (bytes_written_header == -1) {
             perror("Error writing filesystem header to device/image");
