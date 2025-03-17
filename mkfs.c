@@ -33,6 +33,11 @@ void print_usage(const char *prog_name) {
 
 int get_device_type(const char* device_path)
 {
+    if(strncmp(device_path, "/dev/memory/", strlen("/dev/memory/")) == 0)
+    {
+        return S_IFBLK;
+    }
+
     struct stat path_stat;
    
     if (stat(device_path, &path_stat) == -1) {
@@ -47,9 +52,9 @@ void gen_hidden_data(unsigned char data[], uint32_t block_size)
     memset(data, 0x30, block_size);
 }
 
-void gen_fs_padding_data(unsigned char padding[])
+void gen_fs_padding_data(unsigned char padding[], int device_type)
 {
-    memset(padding, 0x20, FS_PADDING_SIZE);
+    
 }
 
 int gen_fs_header(unsigned char *header, unsigned char padding[], unsigned char hidden_data[],
@@ -170,12 +175,16 @@ int main(int argc, char *argv[]) {
     }
 
     struct stat path_stat;
-    if (!try_run && stat(device_path, &path_stat) != 0) {
-        fprintf(stderr, "Error: Device or image file '%s' does not exist or cannot be read.\n", device_path);
-        return 1;
-    } else if (try_run && stat(device_path, &path_stat) != 0) {
-        fprintf(stderr, "Error (Try Run): Device or image file '%s' does not exist or cannot be read.\n", device_path);
-        return 1;
+    if(strncmp(device_path, "/dev/memory/", strlen("/dev/memory/")) == -1)
+    {
+        
+        if (!try_run && stat(device_path, &path_stat) != 0) {
+            fprintf(stderr, "Error: Device or image file '%s' does not exist or cannot be read.\n", device_path);
+            return 1;
+        } else if (try_run && stat(device_path, &path_stat) != 0) {
+            fprintf(stderr, "Error (Try Run): Device or image file '%s' does not exist or cannot be read.\n", device_path);
+            return 1;
+        }
     }
 
     int fd = -1;
@@ -238,7 +247,9 @@ int main(int argc, char *argv[]) {
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
     }
-    gen_fs_padding_data(fs_padding_data);
+
+    printf("%s\n",device_path);
+    gen_fs_padding_data(fs_padding_data,get_device_type(device_path));
     
     // Allocate memory for the header
     unsigned char *fs_header_data = (unsigned char *)malloc(header_data_size);
