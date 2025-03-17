@@ -12,5 +12,7 @@ chmod a+x test.img
 file test.img
 ./test.img
 objdump -x test.img
+objdump -d test.img
+readelf -a test.img
 make clean
 #rm -rf test.img
