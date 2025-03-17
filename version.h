@@ -9,6 +9,8 @@
 
 unsigned char *version = YUKIFS_VERSION "\n";
 
+#define MKFS_VERSION "1.0.0"
+
 #define VERSION_H
 
 #endif // VERSION_H

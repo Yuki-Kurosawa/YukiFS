@@ -23,7 +23,6 @@ typedef struct {
     unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];
 } initial_fs_header;
 
-#define MKFS_VERSION "1.0"
 
 const char filesystem_magic_bytes[8]=FILESYSTEM_MAGIC_BYTES;
 
