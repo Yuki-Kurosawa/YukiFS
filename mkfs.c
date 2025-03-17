@@ -25,6 +25,8 @@ typedef struct {
 
 #define MKFS_VERSION "1.0"
 
+const char filesystem_magic_bytes[8]=FILESYSTEM_MAGIC_BYTES;
+
 void print_usage(const char *prog_name) {
     printf("Usage: %s [OPTIONS] <device_or_image_path>\n", prog_name);
     printf("Create a yukifs filesystem.\n\n");
@@ -38,14 +40,14 @@ void print_usage(const char *prog_name) {
     printf("\n");
 }
 
-int main(int argc, char *argv) {
+int main(int argc, char *argv[]) {
     int block_size = ACTUAL_FS_BLOCK_SIZE; // Default block size
-    const char *device_path = NULL;
-    int force_yes = 0; // Flag for the -y option
-    int try_run = 0;   // Flag for the -t option
+    char *device_path = NULL;
+    static int force_yes = 0; // Flag for the -y option
+    static int try_run = 0;   // Flag for the -t option
     uint32_t try_run_size = 0;
 
-    static struct option long_options= {
+    static struct option long_options[]= {
         {"yes", no_argument, &force_yes, 1},
         {"try-run", no_argument, &try_run, 1},
         {"block-size", required_argument, 0, 'b'},
@@ -151,7 +153,7 @@ int main(int argc, char *argv) {
         }
 
         long long temp_size;
-        if ((temp_size = lseek64(fd, 0, SEEK_END)) != -1) {
+        if ((temp_size = lseek(fd, 0, SEEK_END)) != -1) {
             if (temp_size > UINT32_MAX) {
                 fprintf(stderr, "Error: Device or image file '%s' exceeds the maximum supported size of 4GiB.\n", device_path);
                 close(fd);
@@ -267,7 +269,7 @@ int main(int argc, char *argv) {
 
     // Initialize Superblock
     struct superblock_info *superblock = (struct superblock_info *)fs_header.SUPER_BLOCK_INFO;
-    memcpy(superblock->magic_number, FILESYSTEM_MAGIC_BYTES, sizeof(FILESYSTEM_MAGIC_BYTES));
+    memcpy(superblock->magic_number, filesystem_magic_bytes, sizeof(filesystem_magic_bytes));
     superblock->block_size = block_size;
 
     // Calculate total_inodes (x) and block_count (x) using the provided formulas
@@ -301,7 +303,7 @@ int main(int argc, char *argv) {
 
     // Initialize the first inode for /fs.info
     if (x > 0) {
-        strncpy(inode_table[0].name, "/fs.info", FS_MAX_LEN - 1);
+        strncpy(inode_table[0].name, "fs.info", FS_MAX_LEN - 1);
         inode_table[0].name[FS_MAX_LEN - 1] = '\0';
         inode_table[0].size = 0;
         inode_table[0].inner_file = 1;

@@ -6,7 +6,9 @@
         "cstdint": "cpp",
         "types.h": "c",
         "posix_types.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "getopt.h": "c",
+        "getopt_ext.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
