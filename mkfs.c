@@ -393,9 +393,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (!try_run) {
+        lseek(fd, 0, SEEK_SET); //back to byte 0;
         printf("Writing initial header to the device/image...\n");
-        // Write the header data (which now includes the padding at the beginning)
-        
+        // Write the header data (which now includes the padding at the beginning)        
         ssize_t bytes_written_header = write(fd, fs_header_data, actual_header_size);
         if (bytes_written_header == -1) {
             perror("Error writing filesystem header to device/image");
@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
         memcpy(mem_device, fs_header_data, actual_header_size);
 
         // Simulate writing inode table to memory
-        memcpy(mem_device + actual_header_size, inode_table, inode_table_size);
+        memcpy(mem_device + actual_header_size, inode_table, inode_table_size);        
 
         free(inode_table);
         free(fs_padding_data);
