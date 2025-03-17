@@ -36,22 +36,45 @@ void gen_hidden_data(unsigned char data[], uint32_t block_size)
 
 }
 
-int gen_fs_header(unsigned char header[],unsigned char hidden_data[],
-     struct superblock_info *super_block,uint32_t block_size)
+void gen_fs_padding_data(unsigned char padding[])
 {
-    // FS_PADDING_SIZE macro defined for FS_PADDING
-    // 0: FS_PADDING zeros
+    memset(padding, 0x20, FS_PADDING_SIZE);
+}
+
+int gen_fs_header(unsigned char *header, unsigned char padding[], unsigned char hidden_data[],
+    struct superblock_info *super_block, uint32_t block_size)
+{
+    size_t current_offset = 0;
+    
+    // 0: FS_PADDING zeros (Now passed separately as 'padding')
+    memcpy(header + current_offset, padding, FS_PADDING_SIZE);
+    current_offset += FS_PADDING_SIZE;
+    
     // 1: HIDDEN_DATA
+    memcpy(header + current_offset, hidden_data, block_size);
+    current_offset += block_size;
+    
     // 2: super_block info padding to block size or SUPER_BLOCK_ALIGN_SIZE which is bigger
-    // return header size
-    return 0;
+    size_t superblock_size = sizeof(struct superblock_info);
+    memcpy(header + current_offset, super_block, superblock_size);
+    current_offset += superblock_size;
+    
+    // Pad the superblock section to the larger of block_size or SUPER_BLOCK_ALIGN_SIZE
+    size_t padding_size = (block_size > SUPER_BLOCK_ALIGN_SIZE ? block_size : SUPER_BLOCK_ALIGN_SIZE);
+
+    if (superblock_size < padding_size) {
+        memset(header + current_offset, 0, padding_size - superblock_size);
+        current_offset += (padding_size - superblock_size);
+    }
+
+    return current_offset;
 }
 
 int main(int argc, char *argv[]) {
     int block_size = DEFAULT_FS_BLOCK_SIZE; // Default block size
     char *device_path = NULL;
     static int force_yes = 0; // Flag for the -y option
-    static int try_run = 0;   // Flag for the -t option
+    static int try_run = 0;     // Flag for the -t option
     uint32_t try_run_size = 0;
 
     static struct option long_options[]= {
@@ -194,16 +217,76 @@ int main(int argc, char *argv[]) {
         effective_device_path = device_path;
     }
 
-    // something todo here:
-    // generate fs_header_data_struct manually due to something with dynamic size in it
-    // generate hidden_data_for_fs here
-   
+    // Calculate the size of the filesystem header
+    size_t superblock_padded_size = (block_size > SUPER_BLOCK_ALIGN_SIZE ? block_size : SUPER_BLOCK_ALIGN_SIZE);
+    size_t header_data_size = block_size + superblock_padded_size + FS_PADDING_SIZE;
+    size_t initial_header_size = header_data_size;
 
-    size_t initial_header_size = sizeof(struct fs_header_data_struct);
+    // Allocate memory for the padding
+    unsigned char *fs_padding_data = (unsigned char *)malloc(FS_PADDING_SIZE);
+    if (fs_padding_data == NULL) {
+        perror("Error allocating memory for filesystem padding");
+        if (!try_run && fd != -1) close(fd);
+        if (try_run && mem_device != NULL) free(mem_device);
+        return 1;
+    }
+    gen_fs_padding_data(fs_padding_data);
+    
+    // Allocate memory for the header
+    unsigned char *fs_header_data = (unsigned char *)malloc(header_data_size);
+    if (fs_header_data == NULL) {
+        perror("Error allocating memory for filesystem header");
+        free(fs_padding_data);
+        if (!try_run && fd != -1) close(fd);
+        if (try_run && mem_device != NULL) free(mem_device);
+        return 1;
+    }
+    
+    memset(fs_header_data, 0, initial_header_size);
+    
+    // generate hidden_data_for_fs here
+    unsigned char *hidden_data_buffer = (unsigned char *)malloc(block_size);
+    if (hidden_data_buffer == NULL) {
+        perror("Error allocating memory for hidden data");
+        free(fs_padding_data);
+        free(fs_header_data);
+        if (!try_run && fd != -1) close(fd);
+        if (try_run && mem_device != NULL) free(mem_device);
+        return 1;
+    }
+    gen_hidden_data(hidden_data_buffer, block_size);
+
+    // Initialize Superblock
+    struct superblock_info superblock;
+    memset(&superblock, 0, sizeof(struct superblock_info));
+    memcpy(superblock.magic_number, filesystem_magic_bytes, sizeof(filesystem_magic_bytes));
+    superblock.block_size = block_size;
+
+    // Calculate total_inodes (x) and block_count (x) using the provided formulas
+    uint32_t x = 0;
     uint32_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
+    if (device_size > initial_header_size) {
+        uint32_t remaining_space = device_size - initial_header_size;
+        uint32_t denominator = file_object_align_size + block_size;
+        if (denominator > 0) {
+            x = remaining_space / denominator;
+        }
+    }
+    superblock.total_inodes = x;
+    superblock.block_count = x;
+
+    superblock.block_free = superblock.block_count; // Initially all data blocks are free
+    superblock.block_available = superblock.block_count;
+    superblock.free_inodes = superblock.total_inodes; // Initially all inodes are free
+
+    // Generate the file system header
+    size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, hidden_data_buffer, &superblock, block_size);
+    free(hidden_data_buffer); // Free the hidden data buffer
 
     if (device_size < initial_header_size) {
         fprintf(stderr, "Error: Device or image file '%s' does not have enough space (%zu bytes) for the header (%zu bytes).\n", effective_device_path, device_size, initial_header_size);
+        free(fs_padding_data);
+        free(fs_header_data);
         if (!try_run && fd != -1) close(fd);
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
@@ -220,6 +303,8 @@ int main(int argc, char *argv[]) {
             // Check if only newline was entered (user just pressed Enter)
             if (response[0] == '\n') {
                 printf("Operation cancelled by user (Enter pressed).\n");
+                free(fs_padding_data);
+                free(fs_header_data);
                 if (fd != -1) close(fd);
                 if (try_run && mem_device != NULL) free(mem_device);
                 return 0;
@@ -227,12 +312,16 @@ int main(int argc, char *argv[]) {
             // Check the first character of the response, ignoring case
             if (tolower(response[0]) != 'y') {
                 printf("Operation cancelled by user.\n");
+                free(fs_padding_data);
+                free(fs_header_data);
                 if (fd != -1) close(fd);
                 if (try_run && mem_device != NULL) free(mem_device);
                 return 0;
             }
         } else {
             fprintf(stderr, "Error reading user input. Aborting.\n");
+            free(fs_padding_data);
+            free(fs_header_data);
             if (fd != -1) close(fd);
             if (try_run && mem_device != NULL) free(mem_device);
             return 1;
@@ -254,6 +343,8 @@ int main(int argc, char *argv[]) {
             ssize_t written = write(fd, zero_buffer, write_size);
             if (written == -1) {
                 perror("Error writing zeros to device/image");
+                free(fs_padding_data);
+                free(fs_header_data);
                 close(fd);
                 return 1;
             }
@@ -276,30 +367,6 @@ int main(int argc, char *argv[]) {
         printf("Finished writing zeros to the simulated device.\n");
     }
 
-    struct fs_header_data_struct fs_header;
-    memset(&fs_header, 0, sizeof(struct fs_header_data_struct));
-
-    // Initialize Superblock
-    struct superblock_info *superblock = (struct superblock_info *)fs_header.SUPER_BLOCK_INFO;
-    memcpy(superblock->magic_number, filesystem_magic_bytes, sizeof(filesystem_magic_bytes));
-    superblock->block_size = block_size;
-
-    // Calculate total_inodes (x) and block_count (x) using the provided formulas
-    uint32_t x = 0;
-    if (device_size > initial_header_size) {
-        uint32_t remaining_space = device_size - initial_header_size;
-        uint32_t denominator = file_object_align_size + block_size;
-        if (denominator > 0) {
-            x = remaining_space / denominator;
-        }
-    }
-    superblock->total_inodes = x;
-    superblock->block_count = x;
-
-    superblock->block_free = superblock->block_count; // Initially all data blocks are free
-    superblock->block_available = superblock->block_count;
-    superblock->free_inodes = superblock->total_inodes; // Initially all inodes are free
-
     // Calculate the size of the inode table
     size_t inode_table_size = file_object_align_size * x;
 
@@ -307,6 +374,8 @@ int main(int argc, char *argv[]) {
     struct file_object *inode_table = (struct file_object *)malloc(inode_table_size);
     if (inode_table == NULL) {
         perror("Error allocating memory for inode table");
+        free(fs_padding_data);
+        free(fs_header_data);
         if (!try_run && fd != -1) close(fd);
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
@@ -324,22 +393,27 @@ int main(int argc, char *argv[]) {
     }
 
     if (!try_run) {
-        // Write the initial header to the device/image
-        ssize_t bytes_written_header = write(fd, &fs_header, sizeof(struct fs_header_data_struct));
+        printf("Writing initial header to the device/image...\n");
+        // Write the header data (which now includes the padding at the beginning)
+        ssize_t bytes_written_header = write(fd, fs_header_data, actual_header_size);
         if (bytes_written_header == -1) {
-            perror("Error writing initial header to device/image");
+            perror("Error writing filesystem header to device/image");
             free(inode_table);
+            free(fs_padding_data);
+            free(fs_header_data);
             close(fd);
             return 1;
         }
-
-        if ((size_t)bytes_written_header < sizeof(struct fs_header_data_struct)) {
-            fprintf(stderr, "Warning: Only %zd bytes of initial header written, expected %zu.\n", bytes_written_header, sizeof(struct fs_header_data_struct));
+        if ((size_t)bytes_written_header < actual_header_size) {
+            fprintf(stderr, "Warning: Only %zd bytes of filesystem header written, expected %zu.\n", bytes_written_header, actual_header_size);
         }
 
+        printf("Writing inode table to the device/image...\n");
         // Write the Inode Table to the device/image immediately after the header
         ssize_t bytes_written_inode_table = write(fd, inode_table, inode_table_size);
         free(inode_table); // Free the allocated memory for the inode table
+        free(fs_padding_data); // Free the allocated memory for the filesystem padding
+        free(fs_header_data); // Free the allocated memory for the filesystem header
         if (bytes_written_inode_table == -1) {
             perror("Error writing inode table to device/image");
             close(fd);
@@ -356,13 +430,15 @@ int main(int argc, char *argv[]) {
     } else {
         printf("yukifs filesystem would be created on %s with block size %d, total inodes/blocks: %u\n", effective_device_path, block_size, x);
 
-        // Simulate writing header to memory
-        memcpy(mem_device, &fs_header, sizeof(struct fs_header_data_struct));
+        // Simulate writing header to memory (which now includes padding)
+        memcpy(mem_device, fs_header_data, actual_header_size);
 
         // Simulate writing inode table to memory
-        memcpy(mem_device + sizeof(struct fs_header_data_struct), inode_table, inode_table_size);
+        memcpy(mem_device + actual_header_size, inode_table, inode_table_size);
 
         free(inode_table);
+        free(fs_padding_data);
+        free(fs_header_data);
         free(mem_device);
     }
 
