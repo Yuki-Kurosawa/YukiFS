@@ -45,8 +45,7 @@ struct fs_header_data_struct
 {
     unsigned char FS_PADDING[1024];
     unsigned char HIDDEN_INFO_FOR_FS[ACTUAL_FS_BLOCK_SIZE];
-    unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];
-    
+    unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];    
 };
 
 #endif

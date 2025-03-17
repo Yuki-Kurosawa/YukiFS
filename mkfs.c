@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
         effective_device_path = device_path;
     }
 
-    size_t initial_header_size = sizeof(fs_header_data_struct);
+    size_t initial_header_size = sizeof(struct fs_header_data_struct);
     size_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
 
     if (device_size < initial_header_size) {
@@ -255,8 +255,8 @@ int main(int argc, char *argv[]) {
         printf("Finished writing zeros to the simulated device.\n");
     }
 
-    initial_fs_header fs_header;
-    memset(&fs_header, 0, sizeof(initial_fs_header));
+    struct fs_header_data_struct fs_header;
+    memset(&fs_header, 0, sizeof(struct fs_header_data_struct));
 
     // Initialize Superblock
     struct superblock_info *superblock = (struct superblock_info *)fs_header.SUPER_BLOCK_INFO;
@@ -304,7 +304,7 @@ int main(int argc, char *argv[]) {
 
     if (!try_run) {
         // Write the initial header to the device/image
-        ssize_t bytes_written_header = write(fd, &fs_header, sizeof(initial_fs_header));
+        ssize_t bytes_written_header = write(fd, &fs_header, sizeof(struct fs_header_data_struct));
         if (bytes_written_header == -1) {
             perror("Error writing initial header to device/image");
             free(inode_table);
@@ -312,8 +312,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        if ((size_t)bytes_written_header < sizeof(initial_fs_header)) {
-            fprintf(stderr, "Warning: Only %zd bytes of initial header written, expected %zu.\n", bytes_written_header, sizeof(initial_fs_header));
+        if ((size_t)bytes_written_header < sizeof(struct fs_header_data_struct)) {
+            fprintf(stderr, "Warning: Only %zd bytes of initial header written, expected %zu.\n", bytes_written_header, sizeof(struct fs_header_data_struct));
         }
 
         // Write the Inode Table to the device/image immediately after the header
@@ -336,10 +336,10 @@ int main(int argc, char *argv[]) {
         printf("yukifs filesystem would be created on %s with block size %d, total inodes/blocks: %u\n", effective_device_path, block_size, x);
 
         // Simulate writing header to memory
-        memcpy(mem_device, &fs_header, sizeof(initial_fs_header));
+        memcpy(mem_device, &fs_header, sizeof(struct fs_header_data_struct));
 
         // Simulate writing inode table to memory
-        memcpy(mem_device + sizeof(initial_fs_header), inode_table, inode_table_size);
+        memcpy(mem_device + sizeof(struct fs_header_data_struct), inode_table, inode_table_size);
 
         free(inode_table);
         free(mem_device);
