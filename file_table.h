@@ -41,12 +41,11 @@ struct file_object
 };
 
 //this struct is write to device/image directly begin from byte 0 of the device/image
-struct data_struct_before_actual_data
+struct fs_header_data_struct
 {
     unsigned char FS_PADDING[1024];
     unsigned char HIDDEN_INFO_FOR_FS[ACTUAL_FS_BLOCK_SIZE];
     unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];
-    unsigned char INODE_TABLES[FILE_OBJECT_ALIGN_SIZE*MAX_INODE_COUNTS];
     
 };
 

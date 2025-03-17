@@ -16,14 +16,6 @@
 #include "version.h"
 #include "file_table.h"
 
-// Define a temporary struct without INODE_TABLES for writing the initial header
-typedef struct {
-    unsigned char FS_PADDING[1024];
-    unsigned char HIDDEN_INFO_FOR_FS[SUPER_BLOCK_ALIGN_SIZE]; // Using SUPER_BLOCK_ALIGN_SIZE for consistency
-    unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];
-} initial_fs_header;
-
-
 const char filesystem_magic_bytes[8]=FILESYSTEM_MAGIC_BYTES;
 
 void print_usage(const char *prog_name) {
@@ -186,7 +178,7 @@ int main(int argc, char *argv[]) {
         effective_device_path = device_path;
     }
 
-    size_t initial_header_size = sizeof(initial_fs_header);
+    size_t initial_header_size = sizeof(fs_header_data_struct);
     size_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
 
     if (device_size < initial_header_size) {
