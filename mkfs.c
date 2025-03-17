@@ -31,9 +31,20 @@ void print_usage(const char *prog_name) {
     printf("\n");
 }
 
-void gen_hidden_data(unsigned char* data[], uint32_t block_size)
+void gen_hidden_data(unsigned char data[], uint32_t block_size)
 {
 
+}
+
+int gen_fs_header(unsigned char header[],unsigned char hidden_data[],
+     struct superblock_info *super_block,uint32_t block_size)
+{
+    // FS_PADDING_SIZE macro defined for FS_PADDING
+    // 0: FS_PADDING zeros
+    // 1: HIDDEN_DATA
+    // 2: super_block info padding to block size or SUPER_BLOCK_ALIGN_SIZE which is bigger
+    // return header size
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
