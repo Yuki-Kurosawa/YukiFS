@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef FILE_TABLE_H
 #define FILE_TABLE_H
 
