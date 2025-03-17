@@ -7,4 +7,4 @@ make -f Makefile.mkfs
 ./mkfs.yukifs -t test.img
 ./mkfs.yukifs -y test.img
 make clean
-rm -rf test.img
+#rm -rf test.img

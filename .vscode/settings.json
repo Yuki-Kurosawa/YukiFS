@@ -8,7 +8,15 @@
         "posix_types.h": "c",
         "stddef.h": "c",
         "getopt.h": "c",
-        "getopt_ext.h": "c"
+        "getopt_ext.h": "c",
+        "bit": "c",
+        "*.tcc": "c",
+        "concepts": "c",
+        "cstdio": "c",
+        "cwchar": "c",
+        "type_traits": "c",
+        "new": "c",
+        "typeinfo": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

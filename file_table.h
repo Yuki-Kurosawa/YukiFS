@@ -15,36 +15,37 @@
 #define MAX_INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices
                            // like /dev/sda1 or /opt/yukifs/fsimage.img
                            // writes to superblock_info.total_inodes
-#define ACTUAL_FS_BLOCK_SIZE 512 // this value will be calculated by mkfs.yukifs with the actual devices
-                                 // like /dev/sda1 or /opt/yukifs/fsimage.img
-                                 // writes to superblock_info.block_size
-                                 // then calcuate and write superblock_info.block_count with calcuations with size of devices/images minus size of the data_struct_before_actual_data object
+#define DEFAULT_FS_BLOCK_SIZE 512 // this value will be used by mkfs.yukifs with the actual devices 
+                                  // like /dev/sda1 or /opt/yukifs/fsimage.img when no block size provided
+                                  // writes to superblock_info.block_size
+                                  // then calcuate and write superblock_info.block_count with calcuations with size of devices/images minus size of the data_struct_before_actual_data object
 
 
 struct superblock_info {
     unsigned char magic_number[8];
-    uint8_t block_size;
-    uint8_t block_count;
-    uint8_t block_free;
-    uint8_t block_available;
-    uint8_t total_inodes;
-    uint8_t free_inodes;
+    uint32_t block_size;
+    uint32_t block_count;
+    uint32_t block_free;
+    uint32_t block_available;
+    uint32_t total_inodes;
+    uint32_t free_inodes;
 };
 
 struct file_object
 {
     char name[FS_MAX_LEN]; //file name
-    uint8_t size; //file size
+    uint32_t size; //file size
     int inner_file;// determine the file is a builtin file.
     int descriptor; // the drwxrwxrwx thing, permissions & descriptors
     unsigned int first_block;
 };
 
 //this struct is write to device/image directly begin from byte 0 of the device/image
+//this struct will be removed later due to dynamic size
 struct fs_header_data_struct
 {
     unsigned char FS_PADDING[1024];
-    unsigned char HIDDEN_INFO_FOR_FS[ACTUAL_FS_BLOCK_SIZE];
+    unsigned char HIDDEN_INFO_FOR_FS[DEFAULT_FS_BLOCK_SIZE];
     unsigned char SUPER_BLOCK_INFO[SUPER_BLOCK_ALIGN_SIZE];    
 };
 

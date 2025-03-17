@@ -25,14 +25,19 @@ void print_usage(const char *prog_name) {
     printf("  -y, --yes           Assume yes to all prompts.\n");
     printf("  -t, --try-run       Perform a dry run (simulate on memory).\n");
     printf("  -b, --block-size=SIZE Specify the block size in bytes.\n");
-    printf("                        (Default: %d, Min: %d, Max: %d)\n", ACTUAL_FS_BLOCK_SIZE, MINIMAL_BLOCK_SIZE, MAXIMUM_BLOCK_SIZE);
+    printf("                        (Default: %d, Min: %d, Max: %d)\n", DEFAULT_FS_BLOCK_SIZE, MINIMAL_BLOCK_SIZE, MAXIMUM_BLOCK_SIZE);
     printf("  -h, --help          Display this help message.\n");
     printf("  -v, --version       Display the version of mkfs.\n");
     printf("\n");
 }
 
+void gen_hidden_data(unsigned char* data[], uint32_t block_size)
+{
+
+}
+
 int main(int argc, char *argv[]) {
-    int block_size = ACTUAL_FS_BLOCK_SIZE; // Default block size
+    int block_size = DEFAULT_FS_BLOCK_SIZE; // Default block size
     char *device_path = NULL;
     static int force_yes = 0; // Flag for the -y option
     static int try_run = 0;   // Flag for the -t option
@@ -133,7 +138,7 @@ int main(int argc, char *argv[]) {
 
     int fd = -1;
     uint8_t *mem_device = NULL;
-    uint32_t device_size = 0;
+    size_t device_size = 0;
     const char *effective_device_path = device_path;
 
     if (!try_run) {
@@ -143,14 +148,14 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        long long temp_size;
+        size_t temp_size;
         if ((temp_size = lseek(fd, 0, SEEK_END)) != -1) {
             if (temp_size > UINT32_MAX) {
                 fprintf(stderr, "Error: Device or image file '%s' exceeds the maximum supported size of 4GiB.\n", device_path);
                 close(fd);
                 return 1;
             }
-            device_size = (uint32_t)temp_size;
+            device_size = temp_size;
             if (lseek(fd, 0, SEEK_SET) == -1) { // Reset to beginning
                 perror("Error seeking file");
                 close(fd);
@@ -178,11 +183,16 @@ int main(int argc, char *argv[]) {
         effective_device_path = device_path;
     }
 
+    // something todo here:
+    // generate fs_header_data_struct manually due to something with dynamic size in it
+    // generate hidden_data_for_fs here
+   
+
     size_t initial_header_size = sizeof(struct fs_header_data_struct);
-    size_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
+    uint32_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
 
     if (device_size < initial_header_size) {
-        fprintf(stderr, "Error: Device or image file '%s' does not have enough space (%u bytes) for the header (%zu bytes).\n", effective_device_path, device_size, initial_header_size);
+        fprintf(stderr, "Error: Device or image file '%s' does not have enough space (%zu bytes) for the header (%zu bytes).\n", effective_device_path, device_size, initial_header_size);
         if (!try_run && fd != -1) close(fd);
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
