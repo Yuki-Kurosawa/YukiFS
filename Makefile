@@ -1,13 +1,17 @@
-.PHONY: all clean
+.PHONY: all clean tool
 
-all: ko mkfs
+all: tool ko mkfs
+
+tool:
+	$(MAKE) -C tools
 
 ko:
 	$(MAKE) -C src/ko
 
-mkfs:
+mkfs: tool
 	$(MAKE) -C src/mkfs
 
 clean:
 	$(MAKE) -C src/ko clean
+	$(MAKE) -C tools clean
 	$(MAKE) -C src/mkfs clean

@@ -1,5 +1,4 @@
 #! /bin/bash
-clear
 gcc -c -o built-in.o -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in.c
 ld -o built-in -T linker.ld --static -build-id=none built-in.o
 ./built-in
