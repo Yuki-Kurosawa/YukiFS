@@ -23,7 +23,7 @@ int write(int fd, const char *buf, int length)
 
 void _start(void)
 {
-    write(1, "Hello, World!\n", 15); // Using sizeof directly
+    write(1, BUILT_IN_DATA); // Using sizeof directly
 
     // Make the exit syscall with code 0
     asm("mov %0, %%rax\n\t"

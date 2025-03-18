@@ -6,4 +6,4 @@ built-in.h: built-in.c linker.ld
 	./gen-built-in.sh
 
 clean:
-	rm *.o built-in.h built-in
+	rm *.o built-in.h built-in built-in-data.c built-in.ph

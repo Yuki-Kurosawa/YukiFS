@@ -12,7 +12,7 @@ SECTIONS
     }
 
     /* All code sections */
-    . = 0x4000bf;
+    . = 0x4000f4;
     .text : {
         *(.text*)
     }
