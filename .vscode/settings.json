@@ -17,7 +17,9 @@
         "type_traits": "c",
         "new": "c",
         "typeinfo": "c",
-        "statfs.h": "c"
+        "statfs.h": "c",
+        "unistd.h": "c",
+        "internal.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

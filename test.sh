@@ -1,5 +1,6 @@
 #! /bin/bash
 clear
+cd src/ko
 make 
 modinfo yukifs.ko
 insmod yukifs.ko
@@ -20,3 +21,4 @@ umount fs
 rm -rvf fs
 rmmod yukifs.ko
 make clean
+cd ../../

@@ -6,9 +6,9 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/statfs.h>
-#include "internal.h"
-#include "version.h"
-#include "file_table.h"
+#include "../../include/internal.h"
+#include "../../include/version.h"
+#include "../../include/file_table.h"
 
 // define a tiny superblock info
 #define FS_BLOCK_SIZE 1 // dd bs value

@@ -1,14 +1,13 @@
-PWD := $(shell pwd) 
-KVERSION := $(shell uname -r)
-KERNEL_DIR = /usr/src/linux-headers-$(KVERSION)/
+.PHONY: all clean
 
-MODULE_NAME = yukifs
+all: ko mkfs
 
-$(MODULE_NAME)-objs := inode.o
-obj-m := $(MODULE_NAME).o
+ko:
+	$(MAKE) -C src/ko
 
-all:
-	@make -C $(KERNEL_DIR) M=$(PWD) modules
+mkfs:
+	$(MAKE) -C src/mkfs
+
 clean:
-	@make -C $(KERNEL_DIR) M=$(PWD) clean
-	
+	$(MAKE) -C src/ko clean
+	$(MAKE) -C src/mkfs clean
