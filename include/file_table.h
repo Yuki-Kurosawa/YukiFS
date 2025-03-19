@@ -10,8 +10,8 @@
 #define FILE_DEFAULT_PERMISSION 0755
 #define FILE_OBJECT_ALIGN_SIZE 32
 #define SUPER_BLOCK_ALIGN_SIZE 512
-#define MINIMAL_BLOCK_SIZE 65536
-#define MAXIMUM_BLOCK_SIZE 131072
+#define MINIMAL_BLOCK_SIZE 1024
+#define MAXIMUM_BLOCK_SIZE 8192
 #define FS_PADDING_SIZE 1024
 #define MAX_INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices
                            // like /dev/sda1 or /opt/yukifs/fsimage.img
