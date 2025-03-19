@@ -73,7 +73,7 @@ echo "======================================="
 if [ $BUILT_IN_SIZE -gt $FS_PADDING_SIZE ]; then
     echo "There is not enough space in FS_PADDING_HEADER to embed built-in"
     echo "Please increase FS_PADDING_SIZE in ../../include/file_table.h"
-    #exit 1
+    exit 1
 fi
 
 if [ $MINIMAL_BLOCK_SIZE -lt $FS_PADDING_SIZE ];then
@@ -82,3 +82,41 @@ if [ $MINIMAL_BLOCK_SIZE -lt $FS_PADDING_SIZE ];then
     exit 1
 fi
 
+if [ $MAXIMUM_BLOCK_SIZE -lt $MINIMAL_BLOCK_SIZE ];then
+    echo "MAXIMUM_BLOCK_SIZE must equal or larger then MINIMAL_BLOCK_SIZE"
+    echo "Please increase MAXIMUM_BLOCK_SIZE in ../../include/file_table.h"
+    exit 1
+fi
+
+# add more checks for $FS_PADDING_SIZE , $MINIMAL_BLOCK_SIZE ,$MAXIMUM_BLOCK_SIZE are all based on 2^N and N >0
+is_power_of_two() {
+    local num=$1
+    if [ $num -le 0 ]; then
+        return 1
+    fi
+    while [ $num -gt 1 ]; do
+        if [ $((num % 2)) -ne 0 ]; then
+            return 1
+        fi
+        num=$((num / 2))
+    done
+    return 0
+}
+
+if ! is_power_of_two $FS_PADDING_SIZE; then
+    echo "FS_PADDING_SIZE must be 2-power-based"
+    echo "Please modify FS_PADDING_SIZE in ../../include/file_table.h"
+    exit 1
+fi
+
+if ! is_power_of_two $MINIMAL_BLOCK_SIZE; then
+    echo "MINIMAL_BLOCK_SIZE must be 2-power-based"
+    echo "Please modify MINIMAL_BLOCK_SIZE in ../../include/file_table.h"
+    exit 1
+fi
+
+if ! is_power_of_two $MAXIMUM_BLOCK_SIZE; then
+    echo "MAXIMUM_BLOCK_SIZE must be 2-power-based"
+    echo "Please modify MAXIMUM_BLOCK_SIZE in ../../include/file_table.h"
+    exit 1
+fi
