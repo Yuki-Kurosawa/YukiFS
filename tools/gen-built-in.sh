@@ -63,10 +63,15 @@ echo "built-in ELF size after strip: $BUILT_IN_SIZE bytes"
 # get some SIZE from header ../include/file_table.h
 FS_PADDING_SIZE=$(grep -E '^#define FS_PADDING_SIZE' ../include/file_table.h | awk '{print $3}')
 echo "FS_PADDING_SIZE from header: $FS_PADDING_SIZE bytes"
+MINIMAL_BLOCK_SIZE=$(grep -E '^#define MINIMAL_BLOCK_SIZE' ../include/file_table.h | awk '{print $3}')
+echo "MINIMAL_BLOCK_SIZE from header: $MINIMAL_BLOCK_SIZE bytes"
+MAXIMUM_BLOCK_SIZE=$(grep -E '^#define MAXIMUM_BLOCK_SIZE' ../include/file_table.h | awk '{print $3}')
+echo "MAXIMUM_BLOCK_SIZE from header: $MAXIMUM_BLOCK_SIZE bytes"
 
 echo "======================================="
 
 if [ $BUILT_IN_SIZE -gt $FS_PADDING_SIZE ]; then
     echo "There is not enough space in FS_PADDING_HEADER to embed built-in"
+    echo "Please Increase FS_PADDING_SIZE in ../../include/file_table.h"
     exit 1
 fi
