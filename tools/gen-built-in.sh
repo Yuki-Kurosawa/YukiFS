@@ -135,3 +135,9 @@ if [ $MINIMAL_BLOCK_SIZE -lt 1024 ] || [ $MINIMAL_BLOCK_SIZE -gt 8192 ]; then
     echo "Please modify MAXIMUM_BLOCK_SIZE in ../../include/file_table.h"
     exit 1
 fi
+
+# Convert built-in to C bytes array, then generate built-in.h
+echo -n "Converting built-in to C-Style bytes ... "
+xxd -i built-in > built-in.h
+echo "OK"
+echo "Please #include \"../../tools/built-in.h\" to use it"
