@@ -8,7 +8,7 @@ tool:
 ko: tool
 	$(MAKE) -C src/ko
 
-mkfs: tool
+mkfs: tool ko
 	$(MAKE) -C src/mkfs
 
 clean:

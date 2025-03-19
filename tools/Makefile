@@ -2,7 +2,7 @@
 
 all: built-in.h
 
-built-in.h: built-in.c linker.ld
+built-in.h: built-in.c
 	@./gen-built-in.sh
 
 clean:
