@@ -3,6 +3,7 @@
 unset LANG
 
 # read built-in-info.txt and convert to C string
+echo -n "Converting built-in-info to C-Style bytes ... "
 xxd -i -c 1024 < built-in-info.txt > built-in.ph
 LENGTH=$(wc -c < built-in-info.txt)
 sed -e 's/, 0x/\\\\x/g' -e 's/0x/"\\\\x/g' -e 's/ //g' -re 's/$/"/g' -re "s/$/,$LENGTH/g" built-in.ph > built-in.pph
@@ -11,10 +12,14 @@ mv built-in.pph built-in.ph
 
 # built C string into C file
 sed -e "s@BUILT_IN_DATA@$(cat built-in.ph)@g" built-in.c > built-in-data.c
+echo "OK"
 
+echo -n "Compiling built-in first stage ... "
 # get built-in.o
 gcc -c -o built-in.o -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in-data.c
+echo "OK"
 
+echo -n "Generating C ELF linker script ... "
 # get .text and .rodata size
 TEXT_SIZE=$(size -Ax built-in.o | grep -E '\.text' | awk '{print $2}')
 RODATA_SIZE=$(size -Ax built-in.o | grep -E '\.rodata' | awk '{print $2}')
@@ -26,16 +31,24 @@ TEXT_OFFSET=$(printf "0x%x" $TEXT_OFFSET)
 
 # sed into linker.ld
 sed -e "s/RODATA_OFFSET/$RODATA_OFFSET/g" -e "s/TEXT_OFFSET/$TEXT_OFFSET/g" linker.ld.example>linker.ld
+echo "OK"
 
+echo -n "Compiling built-in second stage ... "
 # link built-in.o
 ld -o built-in -T linker.ld --static -build-id=none built-in.o
+echo "OK"
 
+echo -n "Trying to execute built-in ... "
 ./built-in > /dev/null
 
 if ! [ $? -eq 0 ];then
+    echo "FAILED"
     echo "ERROR: built-in ELF didn't run properly"
     exit 1
 fi
+echo "SUCCESS"
+
+echo "============ built-in info ============"
 
 # get size to BUILT_IN_SIZE
 BUILT_IN_SIZE=$(stat -c%s built-in)
@@ -47,4 +60,13 @@ strip --strip-all -R .comment -R .eh_frame -R .tbss -R .note.gnu.property -s bui
 BUILT_IN_SIZE=$(stat -c%s built-in)
 echo "built-in ELF size after strip: $BUILT_IN_SIZE bytes"
 
+# get some SIZE from header ../include/file_table.h
+FS_PADDING_SIZE=$(grep -E '^#define FS_PADDING_SIZE' ../include/file_table.h | awk '{print $3}')
+echo "FS_PADDING_SIZE from header: $FS_PADDING_SIZE bytes"
 
+echo "======================================="
+
+if [ $BUILT_IN_SIZE -gt $FS_PADDING_SIZE ]; then
+    echo "There is not enough space in FS_PADDING_HEADER to embed built-in"
+    exit 1
+fi
