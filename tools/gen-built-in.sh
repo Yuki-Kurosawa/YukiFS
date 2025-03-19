@@ -24,17 +24,27 @@ export RODATA_OFFSET=0x4000b0
 TEXT_OFFSET=$((RODATA_OFFSET + RODATA_SIZE))
 TEXT_OFFSET=$(printf "0x%x" $TEXT_OFFSET)
 
-echo $RODATA_OFFSET
-echo $TEXT_OFFSET
-
 # sed into linker.ld
 sed -e "s/RODATA_OFFSET/$RODATA_OFFSET/g" -e "s/TEXT_OFFSET/$TEXT_OFFSET/g" linker.ld.example>linker.ld
 
 # link built-in.o
 ld -o built-in -T linker.ld --static -build-id=none built-in.o
 
-./built-in
+./built-in > /dev/null
+
+if ! [ $? -eq 0 ];then
+    echo "ERROR: built-in ELF didn't run properly"
+    exit 1
+fi
+
+# get size to BUILT_IN_SIZE
+BUILT_IN_SIZE=$(stat -c%s built-in)
+echo "built-in ELF size before strip: $BUILT_IN_SIZE bytes"
+
 strip --strip-all -R .comment -R .eh_frame -R .tbss -R .note.gnu.property -s built-in
-ldd built-in
-file built-in
-ls -alc built-in
+
+# get size to BUILT_IN_SIZE again
+BUILT_IN_SIZE=$(stat -c%s built-in)
+echo "built-in ELF size after strip: $BUILT_IN_SIZE bytes"
+
+
