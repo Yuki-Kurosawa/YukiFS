@@ -15,10 +15,24 @@ sed -e "s@BUILT_IN_DATA@$(cat built-in.ph)@g" built-in.c > built-in-data.c
 # get built-in.o
 gcc -c -o built-in.o -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in-data.c
 
-# size built-in.o
-size -A built-in.o
+# get .text and .rodata size
+TEXT_SIZE=$(size -Ax built-in.o | grep -E '\.text' | awk '{print $2}')
+RODATA_SIZE=$(size -Ax built-in.o | grep -E '\.rodata' | awk '{print $2}')
 
+# do some math
+export RODATA_OFFSET=0x4000b0
+TEXT_OFFSET=$((RODATA_OFFSET + RODATA_SIZE))
+TEXT_OFFSET=$(printf "0x%x" $TEXT_OFFSET)
+
+echo $RODATA_OFFSET
+echo $TEXT_OFFSET
+
+# sed into linker.ld
+sed -e "s/RODATA_OFFSET/$RODATA_OFFSET/g" -e "s/TEXT_OFFSET/$TEXT_OFFSET/g" linker.ld.example>linker.ld
+
+# link built-in.o
 ld -o built-in -T linker.ld --static -build-id=none built-in.o
+
 ./built-in
 strip --strip-all -R .comment -R .eh_frame -R .tbss -R .note.gnu.property -s built-in
 ldd built-in
