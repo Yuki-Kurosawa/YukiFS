@@ -178,7 +178,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *yukifs_mount(struct file_system_type *fs_type,
     int flags, const char *dev_name, void *data)
 {
-    return mount_nodev(fs_type, flags, data, yukifs_fill_super);
+    return mount_bdev(fs_type, flags, dev_name, data, yukifs_fill_super);
 }
 
 #pragma region  Module Initialization
@@ -188,6 +188,7 @@ static struct file_system_type yukifs_type = {
     .name = FILESYSTEM_DISPLAYNAME,
     .mount = yukifs_mount,
     .kill_sb = kill_litter_super,
+    .fs_flags = FS_REQUIRES_DEV,
 };
 
 static int __init yukifs_init(void)
