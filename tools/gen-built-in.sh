@@ -72,6 +72,13 @@ echo "======================================="
 
 if [ $BUILT_IN_SIZE -gt $FS_PADDING_SIZE ]; then
     echo "There is not enough space in FS_PADDING_HEADER to embed built-in"
-    echo "Please Increase FS_PADDING_SIZE in ../../include/file_table.h"
+    echo "Please increase FS_PADDING_SIZE in ../../include/file_table.h"
+    #exit 1
+fi
+
+if [ $MINIMAL_BLOCK_SIZE -lt $FS_PADDING_SIZE ];then
+    echo "MINIMAL_BLOCK_SIZE must equal or larger then FS_PADDING_SIZE"
+    echo "Please increase MINIMAL_BLOCK_SIZE in ../../include/file_table.h"
     exit 1
 fi
+

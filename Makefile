@@ -5,7 +5,7 @@ all: tool ko mkfs
 tool:
 	$(MAKE) -C tools
 
-ko:
+ko: tool
 	$(MAKE) -C src/ko
 
 mkfs: tool
