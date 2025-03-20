@@ -1,4 +1,4 @@
-; a x86_64 asm for _start which invokes main
+; a x86_64 asm for _start which get cmdline args and invokes main
 ; with int main(int argc,char* argv[])
 
 section .text
@@ -11,11 +11,14 @@ _start:
     push rbp
     mov rbp, rsp
 
+    ; argc is already on the stack (passed by the kernel)
+    ; argv is also already on the stack (passed by the kernel)
+
     ; Get argc (argument count) from the stack
-    pop rdi         ; argc is the first argument
+    mov rdi, [rsp]  ; argc is at the top of the stack
 
     ; Get argv (argument vector) from the stack
-    mov rsi, rsp    ; argv is the second argument
+    lea rsi, [rsp+8] ; argv starts 8 bytes after argc (assuming 64-bit pointers)
 
     ; Call main(argc, argv)
     call main

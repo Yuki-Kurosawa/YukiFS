@@ -26,12 +26,7 @@ cat > built-in-info.txt << EOF
 # THIS IS AN DISK IMAGE USING YUKIFS
 # YukiFS Version $YUKIFS_VERSION
 # Created by mkfs.yukifs $MKFS_VERSION
-# Built-in Kernel module with kernel $KERNEL_VERSION
-
-# Here is how you can mount this image:
-dd if=%s of=yukifs.ko bs=1 count=$KO_SIZE skip=%s
-insmod yukifs.ko
-mount %s %s
+# Kernel module Built with kernel $KERNEL_VERSION
 EOF
 
 # read built-in-info.txt and convert to C string
@@ -71,12 +66,12 @@ echo "OK"
 
 echo -n "Compiling built-in second stage ... "
 # link built-in.o
-ld -T linker.ld -o built-in --static -build-id=none built-in.o entrypoint.o
+ld -T linker.ld -o built-in --static -build-id=none -z noexecstack built-in.o entrypoint.o
 
 echo "OK"
 
 echo -n "Trying to execute built-in ... "
-./built-in > /dev/null
+./built-in aa > /dev/null
 
 if ! [ $? -eq 0 ];then
     echo "FAILED"
