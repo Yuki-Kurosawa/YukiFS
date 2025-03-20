@@ -19,7 +19,8 @@
         "typeinfo": "c",
         "statfs.h": "c",
         "unistd.h": "c",
-        "internal.h": "c"
+        "internal.h": "c",
+        "built-in.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

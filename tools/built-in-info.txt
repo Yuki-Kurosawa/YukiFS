@@ -1,1 +1,9 @@
-THIS IS BUILT IN INFO
+# THIS IS AN DISK IMAGE USING YUKIFS
+# YukiFS Version "0.1.0"
+# Created by mkfs.yukifs "1.0.0"
+# Built-in Kernel module with kernel 6.8.0-55-generic
+
+# Here is how you can mount this image:
+dd if=%s of=yukifs.ko bs=1 count=14552 skip=%s
+insmod yukifs.ko
+mount %s %s

@@ -2,8 +2,40 @@
 
 unset LANG
 
+# read ../src/ko/yukifs.ko and convert to C byte array
+echo -n "Collecting yukifs.ko ... "
+cp ../src/ko/yukifs.ko ./yukifs.ko
+echo "OK"
+echo "============ ko info ============"
+KO_SIZE=$(stat -c%s yukifs.ko)
+echo "ko size before strip: $KO_SIZE bytes"
+
+strip --strip-debug yukifs.ko
+
+KO_SIZE=$(stat -c%s yukifs.ko)
+echo "ko size after strip: $KO_SIZE bytes"
+echo "================================="
+echo "OK"
+
+# generate built-in-info.txt with some data in it
+YUKIFS_VERSION=$(grep -E '^#define YUKIFS_VERSION' ../include/version.h | awk '{print $3}')
+MKFS_VERSION=$(grep -E '^#define MKFS_VERSION' ../include/version.h | awk '{print $3}')
+KERNEL_VERSION=$(uname -r)
+
+cat > built-in-info.txt << EOF
+# THIS IS AN DISK IMAGE USING YUKIFS
+# YukiFS Version $YUKIFS_VERSION
+# Created by mkfs.yukifs $MKFS_VERSION
+# Built-in Kernel module with kernel $KERNEL_VERSION
+
+# Here is how you can mount this image:
+dd if=%s of=yukifs.ko bs=1 count=$KO_SIZE skip=%s
+insmod yukifs.ko
+mount %s %s
+EOF
+
 # read built-in-info.txt and convert to C string
-echo -n "Converting built-in-info to C-Style bytes ... "
+echo -n "Converting built-in-info to C-Style string ... "
 xxd -i -c 1024 < built-in-info.txt > built-in.ph
 LENGTH=$(wc -c < built-in-info.txt)
 sed -e 's/, 0x/\\\\x/g' -e 's/0x/"\\\\x/g' -e 's/ //g' -re 's/$/"/g' -re "s/$/,$LENGTH/g" built-in.ph > built-in.pph
@@ -16,7 +48,11 @@ echo "OK"
 
 echo -n "Compiling built-in first stage ... "
 # get built-in.o
-gcc -c -o built-in.o -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in-data.c
+gcc -c -o built-in.o --static -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in-data.c
+
+# asm the entrypoint.s
+nasm -f elf64 entrypoint.s -o entrypoint.o
+
 echo "OK"
 
 echo -n "Generating C ELF linker script ... "
@@ -35,7 +71,8 @@ echo "OK"
 
 echo -n "Compiling built-in second stage ... "
 # link built-in.o
-ld -o built-in -T linker.ld --static -build-id=none built-in.o
+ld -T linker.ld -o built-in --static -build-id=none built-in.o entrypoint.o
+
 echo "OK"
 
 echo -n "Trying to execute built-in ... "
@@ -129,7 +166,7 @@ if [ $MINIMAL_BLOCK_SIZE -lt 1024 ] || [ $MINIMAL_BLOCK_SIZE -gt 8192 ]; then
     exit 1
 fi
 
-if [ $MINIMAL_BLOCK_SIZE -lt 1024 ] || [ $MINIMAL_BLOCK_SIZE -gt 8192 ]; then
+if [ $MAXIMUM_BLOCK_SIZE -lt 1024 ] || [ $MAXIMUM_BLOCK_SIZE -gt 8192 ]; then
     echo "MAXIMUM_BLOCK_SIZE must between 1024 and 8192"
     echo "MAXIMUM_BLOCK_SIZE must equal or larger then MINIMAL_BLOCK_SIZE"
     echo "Please modify MAXIMUM_BLOCK_SIZE in ../../include/file_table.h"
@@ -140,4 +177,11 @@ fi
 echo -n "Converting built-in to C-Style bytes ... "
 xxd -i built-in > built-in.h
 echo "OK"
+
+
+echo -n "Converting yukifs.ko to C-Style bytes ... "
+xxd -i -n kernel_module yukifs.ko >> built-in.h
+rm yukifs.ko
+echo "OK"
+
 echo "Please #include \"../../tools/built-in.h\" to use it"

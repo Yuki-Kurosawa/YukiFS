@@ -21,16 +21,7 @@ int write(int fd, const char *buf, int length)
 }
 
 
-void _start(void)
+int main(int argc, char *argv[])
 {
-    write(1, BUILT_IN_DATA); // Using sizeof directly
-
-    // Make the exit syscall with code 0
-    asm("mov %0, %%rax\n\t"
-        "mov %1, %%rdi\n\t"
-        "syscall"
-        :: "i" (60), // SYS_exit is 60 on x86-64
-           "i" (0)  // Exit code 0
-        : "%rax", "%rdi");
-    // No need for a separate exit function or main to return
+    write(1, BUILT_IN_DATA);
 }

@@ -2,11 +2,11 @@
 
 all: tool ko mkfs
 
-tool:
-	$(MAKE) -C tools
-
-ko: tool
+ko: 
 	$(MAKE) -C src/ko
+
+tool: ko
+	$(MAKE) -C tools
 
 mkfs: tool ko
 	$(MAKE) -C src/mkfs

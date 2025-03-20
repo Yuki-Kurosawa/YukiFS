@@ -15,6 +15,7 @@
 
 #include "../../include/version.h"
 #include "../../include/file_table.h"
+#include "../../tools/built-in.h"
 
 const char filesystem_magic_bytes[8]=FILESYSTEM_MAGIC_BYTES;
 
@@ -61,54 +62,11 @@ void gen_fs_padding_data(unsigned char padding[], int device_type)
     else
     {
         // DO SOME ELF THINGS HERE;
-        unsigned char ELF[FS_PADDING_SIZE]={0};
 
-        unsigned char elf_sign[]={0x7F, 0x45, 0x4C, 0x46}; // ELF IDENT EI_MAG0~EI_MAG3
-        memcpy(ELF, elf_sign,sizeof(elf_sign));
-
-        unsigned char elf_header[] ={
-            0x02,                    // Class: 64-bit
-            0x01,                    // Data: Little-endian
-            0x01,                    // Version: 1 (original)
-            0x03,                    // OS/ABI: Linux
-            0x00,                    // ABI Version: 0
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Padding (7 bytes)
-            0x02, 0x00,              // Type: Executable (ET_EXEC)
-            0x3e, 0x00,              // Machine: x86-64 (EM_X86_64)
-            0x01, 0x00, 0x00, 0x00,  // Version (ELF): 1
-            0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Entry point address (PhyAddr)
-            0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Program header offset
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Section header offset
-            0x00, 0x00, 0x00, 0x00,  // Flags
-            0x40, 0x00,              // Size of this header
-            0x38, 0x00,              // Size of program header entries
-            0x01, 0x00,              // Number of program header entries
-            0x00, 0x00,              // Size of section header entries
-            0x00, 0x00,              // Number of section header entries
-            0x00, 0x00               // Section header string table index
-            };
-        memcpy(ELF + 4, elf_header,sizeof(elf_header));
-
-        unsigned char elf_program_header[] = {
-            0x01, 0x00, 0x00, 0x00,  // p_type: LOAD (PT_LOAD)
-            0x07, 0x00, 0x00, 0x00,  // p_flags: Read, Write, Execute
-            0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // p_offset: Offset in file
-            0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // p_vaddr: Virtual address
-            0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // p_paddr: Physical address
-            0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // p_filesz: Size in file
-            0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // p_memsz: Size in memory
-            0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00   // p_align: Alignment (4096)
-        };
-        memcpy(ELF + 4 + sizeof(elf_header), elf_program_header,sizeof(elf_program_header));
-
-        unsigned char program_data[]={
-            0xb8, 0x3c, 0x00, 0x00, 0x00,  // mov eax, 60 (exit syscall number)
-            0xbf, 0x00, 0x00, 0x00, 0x00,  // mov edi, 0 (exit code)
-            0x0f, 0x05                     // syscall
-        };
-        memcpy(ELF + 4 + sizeof(elf_header)+sizeof(elf_program_header), program_data,sizeof(program_data));
-
-        memcpy(padding,ELF,FS_PADDING_SIZE);
+        // embed built-in from built-in.h
+        memcpy(padding, built_in, built_in_len);
+        memset(padding + built_in_len, 0, FS_PADDING_SIZE - built_in_len); //zero-pad if necessary
+        
     }
 }
 
