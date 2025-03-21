@@ -15,8 +15,7 @@
 
 #include "../../include/version.h"
 #include "../../include/file_table.h"
-
-#define INFOFS_VERSION "1.0.0"
+#include "../../tools/built-in.h"
 
 void print_usage(const char *program_name) {
     printf("Usage: %s [OPTIONS] <device_or_image_path>\n", program_name);

@@ -3,7 +3,7 @@ clear
 cd src/mkfs
 unset LANG
 unset LANGUAGE
-dd if=/dev/zero of=test.img bs=1KiB count=10
+dd if=/dev/zero of=test.img bs=1KiB count=30
 make
 ./mkfs.yukifs -v
 ./mkfs.yukifs -h

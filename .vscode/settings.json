@@ -26,7 +26,11 @@
         "stat.h": "c",
         "file_table.h": "c",
         "ctype.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "stdint.h": "c",
+        "version.h": "c",
+        "string.h": "c",
+        "stdlib.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

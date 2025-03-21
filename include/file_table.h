@@ -12,11 +12,11 @@
 #define SUPER_BLOCK_ALIGN_SIZE 512
 #define MINIMAL_BLOCK_SIZE 1024
 #define MAXIMUM_BLOCK_SIZE 8192
-#define FS_PADDING_SIZE 1024
+#define FS_PADDING_SIZE 2048
 #define MAX_INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices
                            // like /dev/sda1 or /opt/yukifs/fsimage.img
                            // writes to superblock_info.total_inodes
-#define DEFAULT_FS_BLOCK_SIZE 512 // this value will be used by mkfs.yukifs with the actual devices 
+#define DEFAULT_FS_BLOCK_SIZE 1024 // this value will be used by mkfs.yukifs with the actual devices 
                                   // like /dev/sda1 or /opt/yukifs/fsimage.img when no block size provided
                                   // writes to superblock_info.block_size
                                   // then calcuate and write superblock_info.block_count with calcuations with size of devices/images minus size of the data_struct_before_actual_data object
