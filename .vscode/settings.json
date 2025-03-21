@@ -20,7 +20,13 @@
         "statfs.h": "c",
         "unistd.h": "c",
         "internal.h": "c",
-        "built-in.h": "c"
+        "built-in.h": "c",
+        "cstdlib": "c",
+        "init.h": "c",
+        "stat.h": "c",
+        "file_table.h": "c",
+        "ctype.h": "c",
+        "fcntl.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

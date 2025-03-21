@@ -11,7 +11,11 @@ tool: ko
 mkfs: tool ko
 	$(MAKE) -C src/mkfs
 
+infofs:
+	$(MAKE) -C src/infofs
+
 clean:
 	$(MAKE) -C src/ko clean
 	$(MAKE) -C tools clean
 	$(MAKE) -C src/mkfs clean
+	$(MAKE) -C src/infofs clean
