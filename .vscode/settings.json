@@ -31,7 +31,8 @@
         "version.h": "c",
         "string.h": "c",
         "stdlib.h": "c",
-        "fs.h": "c"
+        "fs.h": "c",
+        "errno.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

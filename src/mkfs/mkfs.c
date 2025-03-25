@@ -74,10 +74,24 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
 {
 
     // initialize the hidden data structure to zero
-    memset(data, 0x00, size);
+    memset(data, 0x30, size);
+
+    // generate the hidden data structure
+    struct hidden_data_struct *hidden_data=(struct hidden_data_struct *)malloc(sizeof(struct hidden_data_struct));
+    memset(hidden_data, 0, sizeof(struct hidden_data_struct));
+    
+    //set magic numbers
+    hidden_data->hidden_magic_number[0] = 0x55;
+    hidden_data->hidden_magic_number[1] = 0xAA;
+    hidden_data->hidden_end_magic_number[0] = 0xAA;
+    hidden_data->hidden_end_magic_number[1] = 0x55;
+
+    memcpy(data, hidden_data, sizeof(struct hidden_data_struct));
+    free(hidden_data);
 
     // put the kernel module in the hidden data structure at offset block_size
-    memcpy(data + block_size, kernel_module, kernel_module_len);
+    //printf("Kernel module length: %d %ld %d %d\n", kernel_module_len, strlen(kernel_module), size,block_size);
+    //memcpy(data + block_size, kernel_module, kernel_module_len);
     
 }
 
@@ -317,7 +331,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     gen_hidden_data(hidden_data_buffer, hidden_data_size, block_size);
-
+ 
     // Initialize Superblock
     struct superblock_info superblock;
     memset(&superblock, 0, sizeof(struct superblock_info));
@@ -341,12 +355,13 @@ int main(int argc, char *argv[]) {
     superblock.block_available = superblock.block_count;
     superblock.free_inodes = superblock.total_inodes; // Initially all inodes are free
 
+
     // Generate the file system header
     size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, hidden_data_buffer, hidden_data_size, &superblock, block_size);
 
     // Free the allocated memory for the hidden data buffer
     free(hidden_data_buffer); // Free the hidden data buffer
-
+   
     if (device_size < initial_header_size) {
         fprintf(stderr, "Error: Device or image file '%s' does not have enough space (%zu bytes) for the header (%zu bytes).\n", effective_device_path, device_size, initial_header_size);
         free(fs_padding_data);
@@ -475,10 +490,12 @@ int main(int argc, char *argv[]) {
 
         printf("Writing inode table to the device/image...\n");
         // Write the Inode Table to the device/image immediately after the header
+      
         ssize_t bytes_written_inode_table = write(fd, inode_table, inode_table_size);
         free(inode_table); // Free the allocated memory for the inode table
         free(fs_padding_data); // Free the allocated memory for the filesystem padding
         free(fs_header_data); // Free the allocated memory for the filesystem header
+  
         if (bytes_written_inode_table == -1) {
             perror("Error writing inode table to device/image");
             close(fd);

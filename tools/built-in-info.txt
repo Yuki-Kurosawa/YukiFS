@@ -1,4 +1,4 @@
 # THIS IS AN DISK IMAGE USING YUKIFS
 # YukiFS Version "0.1.0"
 # Created by mkfs.yukifs "1.0.0"
-# Kernel module Built with kernel 6.8.0-55-generic
+# Kernel module Built with kernel 6.8.0-56-generic
