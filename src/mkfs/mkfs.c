@@ -76,7 +76,7 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
 {
 
     // initialize the hidden data structure to zero
-    memset(data, 0x30, size);
+    memset(data, 0x00, size);
 
     // generate the hidden data structure
     struct hidden_data_struct *hidden_data=(struct hidden_data_struct *)malloc(sizeof(struct hidden_data_struct));
