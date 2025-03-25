@@ -67,6 +67,8 @@ size_t calc_hidden_data_size(uint32_t block_size)
         kernel_module_clusters = kml / block_size;
     }
 
+    hidden_data_size += kernel_module_clusters * block_size;  
+    
     return hidden_data_size;
 }
 
@@ -90,8 +92,7 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
     free(hidden_data);
 
     // put the kernel module in the hidden data structure at offset block_size
-    //printf("Kernel module length: %d %ld %d %d\n", kernel_module_len, strlen(kernel_module), size,block_size);
-    //memcpy(data + block_size, kernel_module, kernel_module_len);
+    memcpy(data + block_size, kernel_module, kernel_module_len);
     
 }
 
@@ -330,6 +331,7 @@ int main(int argc, char *argv[]) {
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
     }
+
     gen_hidden_data(hidden_data_buffer, hidden_data_size, block_size);
  
     // Initialize Superblock
