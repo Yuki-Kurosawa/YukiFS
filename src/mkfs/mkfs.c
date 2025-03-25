@@ -53,11 +53,8 @@ size_t calc_hidden_data_size(uint32_t block_size)
     uint kml=kernel_module_len;
     size_t hidden_data_size = 0;
 
-    printf("Kernel Size: %u\n",kernel_module_len);    
-
     // add one more block for hidden data structure
     hidden_data_size += block_size;
-    printf("Hidden Size 1st: %zu\n",hidden_data_size);
 
     // calculate how many clusters we need for the kernel module
     uint32_t kernel_module_clusters = 0;
@@ -69,20 +66,19 @@ size_t calc_hidden_data_size(uint32_t block_size)
     else{
         kernel_module_clusters = kml / block_size;
     }
-    printf("Mod: %u\n",mod);
-
-    printf("Kernel Clusters: %u\n", kernel_module_clusters);
-    printf("Kernel Size2: %u\n",kernel_module_clusters * block_size); 
-    hidden_data_size += kernel_module_clusters * block_size;  
-
-    printf("Hidden Size 2nd: %zu\n",hidden_data_size);
 
     return hidden_data_size;
 }
 
-void gen_hidden_data(unsigned char data[], uint32_t size)
+void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
 {
-    memset(data, 0x30, size);
+
+    // initialize the hidden data structure to zero
+    memset(data, 0x00, size);
+
+    // put the kernel module in the hidden data structure at offset block_size
+    memcpy(data + block_size, kernel_module, kernel_module_len);
+    
 }
 
 void gen_fs_padding_data(unsigned char padding[], int device_type)
@@ -294,7 +290,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    printf("%s\n",device_path);
+    
     gen_fs_padding_data(fs_padding_data,get_device_type(device_path));
     
     // Allocate memory for the header
@@ -320,7 +316,7 @@ int main(int argc, char *argv[]) {
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
     }
-    gen_hidden_data(hidden_data_buffer, hidden_data_size);
+    gen_hidden_data(hidden_data_buffer, hidden_data_size, block_size);
 
     // Initialize Superblock
     struct superblock_info superblock;
@@ -349,8 +345,6 @@ int main(int argc, char *argv[]) {
     size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, hidden_data_buffer, hidden_data_size, &superblock, block_size);
 
     // Free the allocated memory for the hidden data buffer
-    printf("hidden_data_size: %zu\n", hidden_data_size);
-    printf("hidden_data_size: %zu\n", strlen(hidden_data_buffer));
     free(hidden_data_buffer); // Free the hidden data buffer
 
     if (device_size < initial_header_size) {
