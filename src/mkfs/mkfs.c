@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
                 print_usage(argv[0]);
                 return 0;
             case 'v':
-                printf("mkfs version %s\n", MKFS_VERSION);
+                printf("mkfs version %s\n", MKFS_VERSION_STRING);
                 return 0;
             case '?':
                 print_usage(argv[0]);

@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
                 print_usage(argv[0]);
                 return 0;
             case 'v':
-                printf("infofs version %s\n", YUKIFS_VERSION);
+                printf("infofs version %s\n", INFOFS_VERSION_STRING);
                 return 0;
             case '?':
                 print_usage(argv[0]);

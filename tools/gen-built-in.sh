@@ -18,8 +18,8 @@ echo "================================="
 echo "OK"
 
 # generate built-in-info.txt with some data in it
-YUKIFS_VERSION=$(grep -E '^#define YUKIFS_VERSION' ../include/version.h | awk '{print $3}')
-MKFS_VERSION=$(grep -E '^#define MKFS_VERSION' ../include/version.h | awk '{print $3}')
+YUKIFS_VERSION=$(grep -E '^#define YUKIFS_VERSION_STRING' ../include/version.h | awk '{print $3}')
+MKFS_VERSION=$(grep -E '^#define MKFS_VERSION_STRING' ../include/version.h | awk '{print $3}')
 KERNEL_VERSION=$(uname -r)
 
 cat > built-in-info.txt << EOF
