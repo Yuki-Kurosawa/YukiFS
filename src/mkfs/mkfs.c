@@ -82,7 +82,7 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
     struct hidden_data_struct *hidden_data=(struct hidden_data_struct *)malloc(sizeof(struct hidden_data_struct));
     memset(hidden_data, 0, sizeof(struct hidden_data_struct));
     
-    //set magic numbers
+    //set magic numbers use 55AA begins and AA55 ends
     hidden_data->hidden_magic_number[0] = 0x55;
     hidden_data->hidden_magic_number[1] = 0xAA;
     hidden_data->hidden_end_magic_number[0] = 0xAA;
