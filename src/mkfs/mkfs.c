@@ -102,6 +102,12 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int
     hidden_data->built_in_ELF_size=S_ISBLK(device_type)?0x0000:built_in_len;
     hidden_data->built_in_ELF_storage_size=block_size;
 
+    hidden_data->hidden_data_offset=block_size;
+    hidden_data->hidden_data_header_size=sizeof(struct hidden_data_struct);
+    hidden_data->hidden_data_header_storage_size=block_size;
+    hidden_data->hidden_data_size=calc_hidden_data_size(block_size);
+    hidden_data->hidden_data_storage_size=calc_hidden_data_size(block_size);
+
     memset(hidden_data->built_in_kernel_module_version, 0x00, 64);
     memcpy(hidden_data->built_in_kernel_module_version,kernel_version_info,kernel_version_info_len);
 

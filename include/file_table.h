@@ -54,6 +54,8 @@ struct hidden_data_struct
     uint32_t built_in_ELF_size;// the built-in ELF size 
     uint32_t built_in_ELF_storage_size;// the built-in ELF size after align
     uint32_t hidden_data_offset;// the offset of hidden data in the image
+    uint32_t hidden_data_header_size;// the size of hidden data header
+    uint32_t hidden_data_header_storage_size;// the size of hidden data header after align
     uint32_t hidden_data_size;// the size of hidden data
     uint32_t hidden_data_storage_size;// the size of hidden data after align
     unsigned char built_in_kernel_module_version[64]; // the built-in kernel module version, actually the kernel version when the image was built
