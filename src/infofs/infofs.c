@@ -166,8 +166,46 @@ int extract_info(const char *device_path)
     printf("  Superblock offset: %lu\n", hidden_data->superblock_offset);
     printf("  Hidden end magic number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
 
-    // close the device or image
     free(buffer);
+
+    // seek to superblock offset
+    if (lseek(fd, hidden_data->superblock_offset, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Cannot seek to the beginning of '%s': %s\n", device_path, strerror(errno));
+        free(buffer);
+        close(fd);
+        return 1;
+    }
+
+    // read superblock to buffer
+    buffer = (unsigned char *)malloc(8*1024);
+    struct superblock_info *superblock=(struct superblock_info *)(buffer);
+    bytes_read = read(fd, buffer, 8*1024);
+    if (bytes_read == -1) {
+        fprintf(stderr, "Error: Cannot read from '%s': %s\n", device_path, strerror(errno));
+        free(buffer);
+        close(fd);
+        return 1;
+    }
+
+    // print superblock
+    printf("Superblock:\n");
+    printf("  Magic Number: %02X%02X%02X%02X%02X%02X%02X%02X\n",
+        superblock->magic_number[0], superblock->magic_number[1],
+        superblock->magic_number[2], superblock->magic_number[3],
+        superblock->magic_number[4], superblock->magic_number[5],
+        superblock->magic_number[6], superblock->magic_number[7]);
+    printf("  Magic String: %s\n", superblock->magic_number);
+    printf("  Block Size: %u\n", superblock->block_size);
+    printf("  Block Count: %u\n", superblock->block_count);
+    printf("  Free Blocks: %u\n", superblock->block_free);
+    printf("  Available Blocks: %u\n", superblock->block_available);
+    printf("  Total Inodes: %u\n", superblock->total_inodes);
+    printf("  Free Inodes: %u\n", superblock->free_inodes);
+
+    free(buffer);
+
+    // close the device or image
+    
     close(fd);
     return 0;
 }
