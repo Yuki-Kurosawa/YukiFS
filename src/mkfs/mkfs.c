@@ -72,7 +72,7 @@ size_t calc_hidden_data_size(uint32_t block_size)
     return hidden_data_size;
 }
 
-void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
+void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int device_type)
 {
 
     // initialize the hidden data structure to zero
@@ -87,6 +87,31 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size)
     hidden_data->hidden_magic_number[1] = 0xAA;
     hidden_data->hidden_end_magic_number[0] = 0xAA;
     hidden_data->hidden_end_magic_number[1] = 0x55;
+
+    //set hidden datas
+    unsigned char fs_version[3]={YUKIFS_VERSION_MAJOR,YUKIFS_VERSION_MINOR,YUKIFS_VERSION_PATCH};
+    memcpy(hidden_data->fs_version,fs_version,3);
+    
+    memset(hidden_data->fs_build_tool_name, 0x00, 10);
+    memcpy(hidden_data->fs_build_tool_name, MKFS_TOOL_NAME, strlen(MKFS_TOOL_NAME));
+
+    unsigned char fs_build_tool_version[3]={MKFS_VERSION_MAJOR,MKFS_VERSION_MINOR,MKFS_VERSION_PATCH};
+    memcpy(hidden_data->fs_build_tool_version,fs_build_tool_version,3);
+
+    hidden_data->built_in_ELF_offset=0x0000;
+    hidden_data->built_in_ELF_size=S_ISBLK(device_type)?0x0000:built_in_len;
+    hidden_data->built_in_ELF_storage_size=block_size;
+
+    memset(hidden_data->built_in_kernel_module_version, 0x00, 64);
+    memcpy(hidden_data->built_in_kernel_module_version,kernel_version_info,kernel_version_info_len);
+
+    hidden_data->built_in_kernel_module_offset=block_size * 2;
+    hidden_data->built_in_kernel_module_size=kernel_module_len;
+
+    int ko_size=calc_hidden_data_size(block_size)-block_size;
+    hidden_data->built_in_kernel_module_storage_size=ko_size;
+
+    hidden_data->superblock_offset=block_size * 2 + ko_size;
 
     memcpy(data, hidden_data, sizeof(struct hidden_data_struct));
     free(hidden_data);
@@ -332,7 +357,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    gen_hidden_data(hidden_data_buffer, hidden_data_size, block_size);
+    gen_hidden_data(hidden_data_buffer, hidden_data_size, block_size,get_device_type(device_path));
  
     // Initialize Superblock
     struct superblock_info superblock;

@@ -20,13 +20,14 @@ echo "OK"
 # generate built-in-info.txt with some data in it
 YUKIFS_VERSION=$(grep -E '^#define YUKIFS_VERSION_STRING' ../include/version.h | awk '{print $3}')
 MKFS_VERSION=$(grep -E '^#define MKFS_VERSION_STRING' ../include/version.h | awk '{print $3}')
-KERNEL_VERSION=$(uname -r)
+KERNEL_VERSION=$(uname -r | tr -d '\n')
 
 cat > built-in-info.txt << EOF
 # THIS IS AN DISK IMAGE USING YUKIFS
 # YukiFS Version $YUKIFS_VERSION
 # Created by mkfs.yukifs $MKFS_VERSION
 # Kernel module Built with kernel $KERNEL_VERSION
+
 EOF
 
 # read built-in-info.txt and convert to C string
@@ -177,6 +178,10 @@ echo "OK"
 echo -n "Converting yukifs.ko to C-Style bytes ... "
 xxd -i -n kernel_module yukifs.ko >> built-in.h
 rm yukifs.ko
+echo "OK"
+
+echo -n "Converting kernel version to C-Style bytes ... "
+echo -n $KERNEL_VERSION | xxd -i -n kernel_version_info >> built-in.h
 echo "OK"
 
 echo "Please #include \"../../tools/built-in.h\" to use it"

@@ -45,8 +45,24 @@ struct file_object
 //this struct is write to device/image directly begin from the end of the built-in-data of the device/image
 struct hidden_data_struct
 {
-    unsigned char hidden_magic_number[2];
-    unsigned char hidden_end_magic_number[2];
+    unsigned char hidden_magic_number[2]; // always 0x55AA
+
+    unsigned char fs_version[3]; // yukifs version
+    unsigned char fs_build_tool_name[10]; // image build tool name
+    unsigned char fs_build_tool_version[3]; // image build tool version
+    uint32_t built_in_ELF_offset;// the built-in ELF offset in the image, always 0x0000
+    uint32_t built_in_ELF_size;// the built-in ELF size 
+    uint32_t built_in_ELF_storage_size;// the built-in ELF size after align
+    uint32_t hidden_data_offset;// the offset of hidden data in the image
+    uint32_t hidden_data_size;// the size of hidden data
+    uint32_t hidden_data_storage_size;// the size of hidden data after align
+    unsigned char built_in_kernel_module_version[64]; // the built-in kernel module version, actually the kernel version when the image was built
+    uint32_t built_in_kernel_module_offset;// the built-in kernel module offset in the image
+    uint32_t built_in_kernel_module_size;// the built-in kernel module size
+    uint32_t built_in_kernel_module_storage_size;// the built-in kernel module size after align
+    uint64_t superblock_offset; // the offset of superblock
+    
+    unsigned char hidden_end_magic_number[2]; //always 0xAA55
 };
 
 #endif
