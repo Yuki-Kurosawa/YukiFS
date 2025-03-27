@@ -21,6 +21,13 @@
                                   // writes to superblock_info.block_size
                                   // then calcuate and write superblock_info.block_count with calcuations with size of devices/images minus size of the data_struct_before_actual_data object
 
+// built-in architechtures
+#define ARCH_UNKNOWN 0x00
+#define ARCH_X86 0x01 // x86, drop support later
+#define ARCH_X86_64 0x02 // x86_64
+#define ARCH_ARM 0x03 // ARM, drop support later
+#define ARCH_AARCH64 0x04 // AARCH64
+#define ARCH_RISCV 0x05 // RISCV, add support later
 
 struct superblock_info {
     unsigned char magic_number[8];
@@ -62,6 +69,7 @@ struct hidden_data_struct
     uint32_t built_in_kernel_module_offset;// the built-in kernel module offset in the image
     uint32_t built_in_kernel_module_size;// the built-in kernel module size
     uint32_t built_in_kernel_module_storage_size;// the built-in kernel module size after align
+    uint8_t built_in_kernel_architechture; // the built-in kernel architecture, actually the kernel arch when the image was built
     uint64_t superblock_offset; // the offset of superblock
     
     unsigned char hidden_end_magic_number[2]; //always 0xAA55

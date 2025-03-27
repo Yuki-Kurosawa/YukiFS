@@ -25,6 +25,7 @@ void print_usage(const char *program_name) {
 }
 
 int extract_info(const char *device_path);
+char* convert_arch_to_string(int arch);
 
 int main(int argc, char *argv[])
 {
@@ -160,6 +161,8 @@ int extract_info(const char *device_path)
     printf("  Built-in kernel module offset: %u\n", hidden_data->built_in_kernel_module_offset);
     printf("  Built-in kernel module size: %u\n", hidden_data->built_in_kernel_module_size);
     printf("  Built-in kernel module storage size: %u\n", hidden_data->built_in_kernel_module_storage_size); 
+    printf("  Built-in kernel module architecture: %d (%s)\n", hidden_data->built_in_kernel_architechture,
+    convert_arch_to_string(hidden_data->built_in_kernel_architechture)); 
     printf("  Superblock offset: %lu\n", hidden_data->superblock_offset);
     printf("  Hidden end magic number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
 
@@ -167,4 +170,18 @@ int extract_info(const char *device_path)
     free(buffer);
     close(fd);
     return 0;
+}
+
+
+char* convert_arch_to_string(int arch)
+{
+    switch (arch) {
+        case ARCH_X86: return "x86/x86_32/i386/i486/i586/i686";
+        case ARCH_X86_64: return "x86_64/x64/amd64";
+        case ARCH_ARM: return "arm/armv7/armv7l";
+        case ARCH_AARCH64: return "aarch64/arm64/armv8";
+        case ARCH_RISCV: return "riscv";
+        default: return "Unknown";
+    }
+    return "Unknown";
 }

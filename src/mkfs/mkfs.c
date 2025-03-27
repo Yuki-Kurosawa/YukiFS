@@ -114,6 +114,21 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int
     hidden_data->built_in_kernel_module_offset=block_size * 2;
     hidden_data->built_in_kernel_module_size=kernel_module_len;
 
+    #ifdef __i386__
+    hidden_data->built_in_kernel_architechture=ARCH_X86;
+    #elif __x86_64__
+    hidden_data->built_in_kernel_architechture=ARCH_X86_64;
+    #elif __arm__
+    hidden_data->built_in_kernel_architechture=ARCH_ARM;
+    #elif __aarch64__
+    hidden_data->built_in_kernel_architechture=ARCH_AARCH64;
+    #elif __riscv__
+    hidden_data->built_in_kernel_architechture=ARCH_RISCV;
+    #else
+    hidden_data->built_in_kernel_architechture=ARCH_UNKNOWN;
+    #endif
+
+
     int ko_size=calc_hidden_data_size(block_size)-block_size;
     hidden_data->built_in_kernel_module_storage_size=ko_size;
 
