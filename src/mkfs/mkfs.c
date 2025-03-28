@@ -511,17 +511,7 @@ int main(int argc, char *argv[]) {
         if (try_run && mem_device != NULL) free(mem_device);
         return 1;
     }
-    memset(inode_table, 0, inode_table_size);
-
-    // Initialize the first inode for /fs.info
-    if (x > 0) {
-        strncpy(inode_table[0].name, "fs.info", FS_MAX_LEN - 1);
-        inode_table[0].name[FS_MAX_LEN - 1] = '\0';
-        inode_table[0].size = 0;
-        inode_table[0].inner_file = 1;
-        inode_table[0].descriptor = FILE_DEFAULT_PERMISSION;
-        inode_table[0].first_block = 0;
-    }
+    memset(inode_table, 0, inode_table_size);  
 
     if (!try_run) {
         lseek(fd, 0, SEEK_SET); //back to byte 0;
