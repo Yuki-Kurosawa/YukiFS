@@ -1,0 +1,8 @@
+
+config YUKI_FS
+    tristate "Enable yukifs filesystem support"
+    default m
+    help
+        This enables the yukifs filesystem support in the kernel.
+
+endmenu
