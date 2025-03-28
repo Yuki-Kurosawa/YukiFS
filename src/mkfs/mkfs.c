@@ -391,11 +391,15 @@ int main(int argc, char *argv[]) {
     uint32_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
     if (device_size > initial_header_size) {
         uint32_t remaining_space = device_size - initial_header_size;
-        uint32_t denominator = file_object_align_size + block_size;
-        if (denominator > 0) {
-            x = remaining_space / denominator;
-        }
+        uint32_t block_count = remaining_space / block_size; //block_count means blocks for inode_tables and datas
+
+        // solve x for block_count=file_object_align_size*x /block_size + x
+        x = (block_count * block_size) / (file_object_align_size + block_size);
+
     }
+
+    
+
     superblock.total_inodes = x;
     superblock.block_count = x;
 

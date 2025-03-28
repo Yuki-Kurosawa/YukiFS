@@ -34,7 +34,8 @@
         "fs.h": "c",
         "errno.h": "c",
         "slab.h": "c",
-        "kernel.h": "c"
+        "kernel.h": "c",
+        "stdio.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

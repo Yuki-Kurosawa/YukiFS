@@ -144,7 +144,7 @@ int extract_info(const char *device_path)
     struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(buffer + hidden_data_offset);
 
     // print hidden data
-    printf("Hidden data:\n");
+    printf("Hidden Data Info:\n");
     printf("  Magic number: %02X%02X\n", hidden_data->hidden_magic_number[0], hidden_data->hidden_magic_number[1]);
     printf("  FS version: %d.%d.%d\n", hidden_data->fs_version[0], hidden_data->fs_version[1], hidden_data->fs_version[2]);
     printf("  Build tool name: %s\n", hidden_data->fs_build_tool_name);
@@ -165,6 +165,8 @@ int extract_info(const char *device_path)
     convert_arch_to_string(hidden_data->built_in_kernel_architechture)); 
     printf("  Superblock offset: %lu\n", hidden_data->superblock_offset);
     printf("  Hidden end magic number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
+
+    uint64_t superblock_offset = hidden_data->superblock_offset;
 
     free(buffer);
 
@@ -188,7 +190,7 @@ int extract_info(const char *device_path)
     }
 
     // print superblock
-    printf("Superblock:\n");
+    printf("Superblock Info:\n");
     printf("  Magic Number: %02X%02X%02X%02X%02X%02X%02X%02X\n",
         superblock->magic_number[0], superblock->magic_number[1],
         superblock->magic_number[2], superblock->magic_number[3],
@@ -201,6 +203,29 @@ int extract_info(const char *device_path)
     printf("  Available Blocks: %u\n", superblock->block_available);
     printf("  Total Inodes: %u\n", superblock->total_inodes);
     printf("  Free Inodes: %u\n", superblock->free_inodes);
+
+    // print image info
+    printf("Image Info:\n");
+    printf("  File Size: %ld\n", file_size);
+
+    int64_t inode_table_size = superblock->total_inodes * FILE_OBJECT_ALIGN_SIZE;
+    uint32_t inode_table_clusters = 0;
+    uint32_t mod=inode_table_size % superblock->block_size;
+    if(mod != 0)
+    {
+        inode_table_clusters = inode_table_size / superblock->block_size + 1;
+    }
+    else{
+        inode_table_clusters = inode_table_size / superblock->block_size;
+    }
+    
+    printf("  Inode Table Size: %ld\n", inode_table_size);
+    printf("  Inode Table Storage Size: %u\n", superblock->block_size * inode_table_clusters);
+    uint64_t data_blocks_offset = superblock_offset + superblock->block_size + superblock->block_size * inode_table_clusters;
+    printf("  Data Blocks Offset: %lu\n",data_blocks_offset);
+    printf("  Data Blocks Total Size: %u\n", superblock->block_count * superblock->block_size);
+    printf("  Data Blocks End Offset: %lu\n", data_blocks_offset + superblock->block_free * superblock->block_size);
+    printf("  Unallocated Space Size: %lu\n", file_size - data_blocks_offset - superblock->block_count * superblock->block_size);
 
     free(buffer);
 
