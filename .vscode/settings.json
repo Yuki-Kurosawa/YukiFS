@@ -36,7 +36,8 @@
         "slab.h": "c",
         "kernel.h": "c",
         "stdio.h": "c",
-        "cerrno": "c"
+        "cerrno": "c",
+        "namei.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
