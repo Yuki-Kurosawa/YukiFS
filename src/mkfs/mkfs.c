@@ -142,11 +142,11 @@ void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int
     
 }
 
-void gen_fs_padding_data(unsigned char padding[], int device_type)
+void gen_fs_padding_data(unsigned char padding[], size_t size, int device_type)
 {
     if(S_ISBLK(device_type))
     {
-        memset(padding,0x00,FS_PADDING_SIZE);
+        memset(padding,0x00,size);
     }
     else
     {
@@ -154,19 +154,19 @@ void gen_fs_padding_data(unsigned char padding[], int device_type)
 
         // embed built-in from built-in.h
         memcpy(padding, built_in, built_in_len);
-        memset(padding + built_in_len, 0, FS_PADDING_SIZE - built_in_len); //zero-pad if necessary
+        memset(padding + built_in_len, 0, size - built_in_len); //zero-pad if necessary
         
     }
 }
 
-int gen_fs_header(unsigned char *header, unsigned char padding[], unsigned char hidden_data[], size_t hidden_data_size,
+int gen_fs_header(unsigned char *header, unsigned char padding[], size_t fs_padding_size, unsigned char hidden_data[], size_t hidden_data_size,
     struct superblock_info *super_block, uint32_t block_size)
 {
     size_t current_offset = 0;
     
     // 0: FS_PADDING zeros (Now passed separately as 'padding')
-    memcpy(header + current_offset, padding, FS_PADDING_SIZE);
-    current_offset += block_size > FS_PADDING_SIZE ? block_size : FS_PADDING_SIZE;
+    memcpy(header + current_offset, padding, fs_padding_size);
+    current_offset += fs_padding_size;
     
     // 1: HIDDEN_DATA
     memcpy(header + current_offset, hidden_data, hidden_data_size);
@@ -337,13 +337,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Calculate the size of the filesystem header
+    size_t fs_padding_size = (block_size > FS_PADDING_SIZE ? block_size : FS_PADDING_SIZE);
     size_t hidden_data_size = calc_hidden_data_size(block_size);
     size_t superblock_padded_size = (block_size > SUPER_BLOCK_ALIGN_SIZE ? block_size : SUPER_BLOCK_ALIGN_SIZE);
-    size_t header_data_size = hidden_data_size + superblock_padded_size + FS_PADDING_SIZE;
+    size_t header_data_size = hidden_data_size + superblock_padded_size + fs_padding_size;
     size_t initial_header_size = header_data_size;
 
     // Allocate memory for the padding
-    unsigned char *fs_padding_data = (unsigned char *)malloc(FS_PADDING_SIZE);
+    unsigned char *fs_padding_data = (unsigned char *)malloc(fs_padding_size);
     if (fs_padding_data == NULL) {
         perror("Error allocating memory for filesystem padding");
         if (!try_run && fd != -1) close(fd);
@@ -352,7 +353,7 @@ int main(int argc, char *argv[]) {
     }
 
     
-    gen_fs_padding_data(fs_padding_data,get_device_type(device_path));
+    gen_fs_padding_data(fs_padding_data,fs_padding_size,get_device_type(device_path));
     
     // Allocate memory for the header
     unsigned char *fs_header_data = (unsigned char *)malloc(header_data_size);
@@ -409,7 +410,7 @@ int main(int argc, char *argv[]) {
 
 
     // Generate the file system header
-    size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, hidden_data_buffer, hidden_data_size, &superblock, block_size);
+    size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, fs_padding_size, hidden_data_buffer, hidden_data_size, &superblock, block_size);
 
     // Free the allocated memory for the hidden data buffer
     free(hidden_data_buffer); // Free the hidden data buffer

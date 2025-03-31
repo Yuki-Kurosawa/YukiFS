@@ -1,0 +1,166 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/root/fs/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+$(MODULE_NAME)-objs	src/ko/Makefile	/^$(MODULE_NAME)-objs := inode.o$/;"	m
+ARCH_AARCH64	include/file_table.h	/^#define ARCH_AARCH64 /;"	d
+ARCH_ARM	include/file_table.h	/^#define ARCH_ARM /;"	d
+ARCH_RISCV	include/file_table.h	/^#define ARCH_RISCV /;"	d
+ARCH_UNKNOWN	include/file_table.h	/^#define ARCH_UNKNOWN /;"	d
+ARCH_X86	include/file_table.h	/^#define ARCH_X86 /;"	d
+ARCH_X86_64	include/file_table.h	/^#define ARCH_X86_64 /;"	d
+DEFAULT_FS_BLOCK_SIZE	include/file_table.h	/^#define DEFAULT_FS_BLOCK_SIZE /;"	d
+FILESYSTEM_DISPLAYNAME	include/internal.h	/^#define FILESYSTEM_DISPLAYNAME /;"	d
+FILESYSTEM_MAGIC_BYTES	include/file_table.h	/^#define FILESYSTEM_MAGIC_BYTES /;"	d
+FILESYSTEM_MAGIC_NUMBER	include/file_table.h	/^#define FILESYSTEM_MAGIC_NUMBER /;"	d
+FILE_DEFAULT_PERMISSION	include/file_table.h	/^#define FILE_DEFAULT_PERMISSION /;"	d
+FILE_OBJECT_ALIGN_SIZE	include/file_table.h	/^#define FILE_OBJECT_ALIGN_SIZE /;"	d
+FILE_TABLE_H	include/file_table.h	/^#define FILE_TABLE_H$/;"	d
+FS_BLOCK_AVAILABLE	src/ko/inode.c	/^#define FS_BLOCK_AVAILABLE /;"	d	file:
+FS_BLOCK_AVAILABLE	src/ko/inode.simple.c	/^#define FS_BLOCK_AVAILABLE /;"	d	file:
+FS_BLOCK_COUNT	src/ko/inode.c	/^#define FS_BLOCK_COUNT /;"	d	file:
+FS_BLOCK_COUNT	src/ko/inode.simple.c	/^#define FS_BLOCK_COUNT /;"	d	file:
+FS_BLOCK_FREE	src/ko/inode.c	/^#define FS_BLOCK_FREE /;"	d	file:
+FS_BLOCK_FREE	src/ko/inode.simple.c	/^#define FS_BLOCK_FREE /;"	d	file:
+FS_BLOCK_SIZE	src/ko/inode.c	/^#define FS_BLOCK_SIZE /;"	d	file:
+FS_BLOCK_SIZE	src/ko/inode.simple.c	/^#define FS_BLOCK_SIZE /;"	d	file:
+FS_FREE_INODES	src/ko/inode.c	/^#define FS_FREE_INODES /;"	d	file:
+FS_FREE_INODES	src/ko/inode.simple.c	/^#define FS_FREE_INODES /;"	d	file:
+FS_MAX_LEN	include/file_table.h	/^#define FS_MAX_LEN /;"	d
+FS_PADDING_SIZE	include/file_table.h	/^#define FS_PADDING_SIZE /;"	d
+FS_TOTAL_INODES	src/ko/inode.c	/^#define FS_TOTAL_INODES /;"	d	file:
+FS_TOTAL_INODES	src/ko/inode.simple.c	/^#define FS_TOTAL_INODES /;"	d	file:
+INFOFS_VERSION_MAJOR	include/version.h	/^#define INFOFS_VERSION_MAJOR /;"	d
+INFOFS_VERSION_MINOR	include/version.h	/^#define INFOFS_VERSION_MINOR /;"	d
+INFOFS_VERSION_PATCH	include/version.h	/^#define INFOFS_VERSION_PATCH /;"	d
+INFOFS_VERSION_STRING	include/version.h	/^#define INFOFS_VERSION_STRING /;"	d
+INTERNAL_H	include/internal.h	/^#define INTERNAL_H$/;"	d
+KERNEL_DIR	src/ko/Makefile	/^KERNEL_DIR = \/usr\/src\/linux-headers-$(KVERSION)\/$/;"	m
+KVERSION	src/ko/Makefile	/^KVERSION := $(shell uname -r)$/;"	m
+MAXIMUM_BLOCK_SIZE	include/file_table.h	/^#define MAXIMUM_BLOCK_SIZE /;"	d
+MAX_INODE_COUNTS	include/file_table.h	/^#define MAX_INODE_COUNTS /;"	d
+MINIMAL_BLOCK_SIZE	include/file_table.h	/^#define MINIMAL_BLOCK_SIZE /;"	d
+MKFS_TOOL_NAME	include/version.h	/^#define MKFS_TOOL_NAME /;"	d
+MKFS_VERSION_MAJOR	include/version.h	/^#define MKFS_VERSION_MAJOR /;"	d
+MKFS_VERSION_MINOR	include/version.h	/^#define MKFS_VERSION_MINOR /;"	d
+MKFS_VERSION_PATCH	include/version.h	/^#define MKFS_VERSION_PATCH /;"	d
+MKFS_VERSION_STRING	include/version.h	/^#define MKFS_VERSION_STRING /;"	d
+MODULE_NAME	src/ko/Makefile	/^MODULE_NAME = yukifs$/;"	m
+PWD	src/ko/Makefile	/^PWD := $(shell pwd) $/;"	m
+SUPER_BLOCK_ALIGN_SIZE	include/file_table.h	/^#define SUPER_BLOCK_ALIGN_SIZE /;"	d
+VERSION_H	include/version.h	/^#define VERSION_H$/;"	d
+YUKIFS_AUTHOR	include/version.h	/^#define YUKIFS_AUTHOR /;"	d
+YUKIFS_DESCRIPTION	include/version.h	/^#define YUKIFS_DESCRIPTION /;"	d
+YUKIFS_LICENSE	include/version.h	/^#define YUKIFS_LICENSE /;"	d
+YUKIFS_VERSION_MAJOR	include/version.h	/^#define YUKIFS_VERSION_MAJOR /;"	d
+YUKIFS_VERSION_MINOR	include/version.h	/^#define YUKIFS_VERSION_MINOR /;"	d
+YUKIFS_VERSION_PATCH	include/version.h	/^#define YUKIFS_VERSION_PATCH /;"	d
+YUKIFS_VERSION_STRING	include/version.h	/^#define YUKIFS_VERSION_STRING /;"	d
+all	Makefile	/^all: tool ko mkfs infofs$/;"	t
+all	src/infofs/Makefile	/^all: infofs.yukifs$/;"	t
+all	src/ko/Makefile	/^all:$/;"	t
+all	src/mkfs/Makefile	/^all: mkfs.yukifs$/;"	t
+all	tools/Makefile	/^all: built-in.h$/;"	t
+block_available	include/file_table.h	/^    uint32_t block_available;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+block_count	include/file_table.h	/^    uint32_t block_count;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+block_free	include/file_table.h	/^    uint32_t block_free;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+block_size	include/file_table.h	/^    uint32_t block_size;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+built-in.h	tools/Makefile	/^built-in.h: built-in.c$/;"	t
+built_in_ELF_offset	include/file_table.h	/^    uint32_t built_in_ELF_offset;\/\/ the built-in ELF offset in the image, always 0x0000$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_ELF_size	include/file_table.h	/^    uint32_t built_in_ELF_size;\/\/ the built-in ELF size $/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_ELF_storage_size	include/file_table.h	/^    uint32_t built_in_ELF_storage_size;\/\/ the built-in ELF size after align$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_kernel_architechture	include/file_table.h	/^    uint8_t built_in_kernel_architechture; \/\/ the built-in kernel architecture, actually the k/;"	m	struct:hidden_data_struct	typeref:typename:uint8_t
+built_in_kernel_module_offset	include/file_table.h	/^    uint32_t built_in_kernel_module_offset;\/\/ the built-in kernel module offset in the image$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_kernel_module_size	include/file_table.h	/^    uint32_t built_in_kernel_module_size;\/\/ the built-in kernel module size$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_kernel_module_storage_size	include/file_table.h	/^    uint32_t built_in_kernel_module_storage_size;\/\/ the built-in kernel module size after alig/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+built_in_kernel_module_version	include/file_table.h	/^    unsigned char built_in_kernel_module_version[64]; \/\/ the built-in kernel module version, a/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[64]
+calc_hidden_data_size	src/mkfs/mkfs.c	/^size_t calc_hidden_data_size(uint32_t block_size)$/;"	f	typeref:typename:size_t
+clean	Makefile	/^clean:$/;"	t
+clean	src/infofs/Makefile	/^clean:$/;"	t
+clean	src/ko/Makefile	/^clean:$/;"	t
+clean	src/mkfs/Makefile	/^clean:$/;"	t
+clean	tools/Makefile	/^clean:$/;"	t
+convert_arch_to_string	src/infofs/infofs.c	/^char* convert_arch_to_string(int arch)$/;"	f	typeref:typename:char *
+default	src/infofs/Makefile	/^default: all$/;"	t
+default	src/mkfs/Makefile	/^default: all$/;"	t
+descriptor	include/file_table.h	/^    int descriptor; \/\/ the drwxrwxrwx thing, permissions & descriptors$/;"	m	struct:file_object	typeref:typename:int
+extract_info	src/infofs/infofs.c	/^int extract_info(const char *device_path) $/;"	f	typeref:typename:int
+file_object	include/file_table.h	/^struct file_object$/;"	s
+filesystem_magic_bytes	src/mkfs/mkfs.c	/^const char filesystem_magic_bytes[8]=FILESYSTEM_MAGIC_BYTES;$/;"	v	typeref:typename:const char[8]
+first_block	include/file_table.h	/^    unsigned int first_block;$/;"	m	struct:file_object	typeref:typename:unsigned int
+free_inodes	include/file_table.h	/^    uint32_t free_inodes;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+fs_build_tool_name	include/file_table.h	/^    unsigned char fs_build_tool_name[10]; \/\/ image build tool name$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[10]
+fs_build_tool_version	include/file_table.h	/^    unsigned char fs_build_tool_version[3]; \/\/ image build tool version$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[3]
+fs_version	include/file_table.h	/^    unsigned char fs_version[3]; \/\/ yukifs version$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[3]
+gen_fs_header	src/mkfs/mkfs.c	/^int gen_fs_header(unsigned char *header, unsigned char padding[], unsigned char hidden_data[], s/;"	f	typeref:typename:int
+gen_fs_padding_data	src/mkfs/mkfs.c	/^void gen_fs_padding_data(unsigned char padding[], int device_type)$/;"	f	typeref:typename:void
+gen_hidden_data	src/mkfs/mkfs.c	/^void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int device_type)$/;"	f	typeref:typename:void
+get_device_type	src/mkfs/mkfs.c	/^int get_device_type(const char* device_path)$/;"	f	typeref:typename:int
+hidden_data_header_size	include/file_table.h	/^    uint32_t hidden_data_header_size;\/\/ the size of hidden data header$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+hidden_data_header_storage_size	include/file_table.h	/^    uint32_t hidden_data_header_storage_size;\/\/ the size of hidden data header after align$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+hidden_data_offset	include/file_table.h	/^    uint32_t hidden_data_offset;\/\/ the offset of hidden data in the image$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+hidden_data_size	include/file_table.h	/^    uint32_t hidden_data_size;\/\/ the size of hidden data$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+hidden_data_storage_size	include/file_table.h	/^    uint32_t hidden_data_storage_size;\/\/ the size of hidden data after align$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t
+hidden_data_struct	include/file_table.h	/^struct hidden_data_struct$/;"	s
+hidden_end_magic_number	include/file_table.h	/^    unsigned char hidden_end_magic_number[2]; \/\/always 0xAA55$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[2]
+hidden_magic_number	include/file_table.h	/^    unsigned char hidden_magic_number[2]; \/\/ always 0x55AA$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[2]
+infofs	Makefile	/^infofs:$/;"	t
+infofs.yukifs	src/infofs/Makefile	/^infofs.yukifs: infofs.c$/;"	t
+inner_file	include/file_table.h	/^    int inner_file;\/\/ determine the file is a builtin file.$/;"	m	struct:file_object	typeref:typename:int
+install	Makefile	/^install:$/;"	t
+install	src/infofs/Makefile	/^install:$/;"	t
+install	src/mkfs/Makefile	/^install:$/;"	t
+ko	Makefile	/^ko: $/;"	t
+magic_number	include/file_table.h	/^    unsigned char magic_number[8];$/;"	m	struct:superblock_info	typeref:typename:unsigned char[8]
+main	src/infofs/infofs.c	/^int main(int argc, char *argv[])$/;"	f	typeref:typename:int
+main	src/mkfs/mkfs.c	/^int main(int argc, char *argv[]) {$/;"	f	typeref:typename:int
+main	tools/built-in.c	/^int main(int argc, char *argv[])$/;"	f	typeref:typename:int
+mkfs	Makefile	/^mkfs: tool ko$/;"	t
+mkfs.yukifs	src/mkfs/Makefile	/^mkfs.yukifs: mkfs.c$/;"	t
+name	include/file_table.h	/^    char name[FS_MAX_LEN]; \/\/file name$/;"	m	struct:file_object	typeref:typename:char[]
+obj-m	src/ko/Makefile	/^obj-m := $(MODULE_NAME).o$/;"	m
+print_usage	src/infofs/infofs.c	/^void print_usage(const char *program_name) {$/;"	f	typeref:typename:void
+print_usage	src/mkfs/mkfs.c	/^void print_usage(const char *prog_name) {$/;"	f	typeref:typename:void
+remove	Makefile	/^remove:$/;"	t
+remove	src/infofs/Makefile	/^remove:$/;"	t
+remove	src/mkfs/Makefile	/^remove:$/;"	t
+size	include/file_table.h	/^    uint32_t size; \/\/file size$/;"	m	struct:file_object	typeref:typename:uint32_t
+strlen	tools/built-in.c	/^int strlen(const char *str) {$/;"	f	typeref:typename:int
+superblock_info	include/file_table.h	/^struct superblock_info {$/;"	s
+superblock_offset	include/file_table.h	/^    uint64_t superblock_offset; \/\/ the offset of superblock$/;"	m	struct:hidden_data_struct	typeref:typename:uint64_t
+tool	Makefile	/^tool: ko$/;"	t
+total_inodes	include/file_table.h	/^    uint32_t total_inodes;$/;"	m	struct:superblock_info	typeref:typename:uint32_t
+uint64	tools/built-in.c	/^typedef unsigned long long int uint64;$/;"	t	typeref:typename:unsigned long long int	file:
+version	include/version.h	/^unsigned char *version = YUKIFS_VERSION_STRING "\\n";$/;"	v	typeref:typename:unsigned char *
+write	tools/built-in.c	/^int write(int fd, const char *buf, int length)$/;"	f	typeref:typename:int
+yukifs_exit	src/ko/inode.c	/^static void __exit yukifs_exit(void)$/;"	f	typeref:typename:void __exit	file:
+yukifs_exit	src/ko/inode.simple.c	/^static void __exit yukifs_exit(void)$/;"	f	typeref:typename:void __exit	file:
+yukifs_file_ops	src/ko/inode.c	/^static struct file_operations yukifs_file_ops = {$/;"	v	typeref:struct:file_operations	file:
+yukifs_file_ops	src/ko/inode.simple.c	/^static struct file_operations yukifs_file_ops = {$/;"	v	typeref:struct:file_operations	file:
+yukifs_fill_super	src/ko/inode.c	/^static int yukifs_fill_super(struct super_block *sb, void *data, int silent)$/;"	f	typeref:typename:int	file:
+yukifs_fill_super	src/ko/inode.simple.c	/^static int yukifs_fill_super(struct super_block *sb, void *data, int silent)$/;"	f	typeref:typename:int	file:
+yukifs_init	src/ko/inode.c	/^static int __init yukifs_init(void)$/;"	f	typeref:typename:int __init	file:
+yukifs_init	src/ko/inode.simple.c	/^static int __init yukifs_init(void)$/;"	f	typeref:typename:int __init	file:
+yukifs_make_inode	src/ko/inode.c	/^static struct inode *yukifs_make_inode(struct super_block *sb, int mode, unsigned char* data)$/;"	f	typeref:struct:inode *	file:
+yukifs_make_inode	src/ko/inode.simple.c	/^static struct inode *yukifs_make_inode(struct super_block *sb, int mode, unsigned char* data)$/;"	f	typeref:struct:inode *	file:
+yukifs_mount	src/ko/inode.c	/^static struct dentry *yukifs_mount(struct file_system_type *fs_type,$/;"	f	typeref:struct:dentry *	file:
+yukifs_mount	src/ko/inode.simple.c	/^static struct dentry *yukifs_mount(struct file_system_type *fs_type,$/;"	f	typeref:struct:dentry *	file:
+yukifs_open	src/ko/inode.c	/^static int yukifs_open(struct inode *inode, struct file *filp)$/;"	f	typeref:typename:int	file:
+yukifs_open	src/ko/inode.simple.c	/^static int yukifs_open(struct inode *inode, struct file *filp)$/;"	f	typeref:typename:int	file:
+yukifs_put_super	src/ko/inode.c	/^static void yukifs_put_super(struct super_block *sb)$/;"	f	typeref:typename:void	file:
+yukifs_put_super	src/ko/inode.simple.c	/^static void yukifs_put_super(struct super_block *sb)$/;"	f	typeref:typename:void	file:
+yukifs_read	src/ko/inode.c	/^static ssize_t yukifs_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)$/;"	f	typeref:typename:ssize_t	file:
+yukifs_read	src/ko/inode.simple.c	/^static ssize_t yukifs_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)$/;"	f	typeref:typename:ssize_t	file:
+yukifs_statfs	src/ko/inode.c	/^static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)$/;"	f	typeref:typename:int	file:
+yukifs_statfs	src/ko/inode.simple.c	/^static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)$/;"	f	typeref:typename:int	file:
+yukifs_super_ops	src/ko/inode.c	/^static struct super_operations const yukifs_super_ops = {$/;"	v	typeref:struct:super_operations const	file:
+yukifs_super_ops	src/ko/inode.simple.c	/^static struct super_operations const yukifs_super_ops = {$/;"	v	typeref:struct:super_operations const	file:
+yukifs_type	src/ko/inode.c	/^static struct file_system_type yukifs_type = {$/;"	v	typeref:struct:file_system_type	file:
+yukifs_type	src/ko/inode.simple.c	/^static struct file_system_type yukifs_type = {$/;"	v	typeref:struct:file_system_type	file:

@@ -1,0 +1,160 @@
+Test 1: 1024 block size
+Found sequence 0x55AA at offset 1024
+Found sequence 0xAA55 at offset 1168
+Hidden Data Info:
+  Magic number: 55AA
+  FS version: 0.1.0
+  Build tool name: mkfs
+  Build tool version: 1.0.0
+  Built-in ELF offset: 0
+  Built-in ELF size: 824
+  Built-in ELF storage size: 1024
+  Hidden data offset: 1024
+  Hidden data header size: 152
+  Hidden data header storage size: 1024
+  Hidden data size: 16384
+  Hidden data storage size: 16384
+  Built-in kernel module version: 6.8.0-56-generic
+  Built-in kernel module offset: 2048
+  Built-in kernel module size: 14552
+  Built-in kernel module storage size: 15360
+  Built-in kernel module architecture: 2 (x86_64/x64/amd64)
+  Superblock offset: 17408
+  Hidden end magic number: AA55
+Superblock Info:
+  Magic Number: 59554B4900000000
+  Magic String: YUKI
+  Block Size: 1024
+  Block Count: 79
+  Free Blocks: 79
+  Available Blocks: 79
+  Total Inodes: 79
+  Free Inodes: 79
+Image Info:
+  File Size: 102400
+  Inode Table Size: 2528
+  Inode Table Storage Size: 3072
+  Data Blocks Offset: 21504
+  Data Blocks Total Size: 80896
+  Data Blocks End Offset: 102400
+  Unallocated Space Size: 0
+Test 2: 2048 block size
+Found sequence 0x55AA at offset 2048
+Found sequence 0xAA55 at offset 2192
+Hidden Data Info:
+  Magic number: 55AA
+  FS version: 0.1.0
+  Build tool name: mkfs
+  Build tool version: 1.0.0
+  Built-in ELF offset: 0
+  Built-in ELF size: 824
+  Built-in ELF storage size: 2048
+  Hidden data offset: 2048
+  Hidden data header size: 152
+  Hidden data header storage size: 2048
+  Hidden data size: 18432
+  Hidden data storage size: 18432
+  Built-in kernel module version: 6.8.0-56-generic
+  Built-in kernel module offset: 4096
+  Built-in kernel module size: 14552
+  Built-in kernel module storage size: 16384
+  Built-in kernel module architecture: 2 (x86_64/x64/amd64)
+  Superblock offset: 20480
+  Hidden end magic number: AA55
+Superblock Info:
+  Magic Number: 59554B4900000000
+  Magic String: YUKI
+  Block Size: 2048
+  Block Count: 38
+  Free Blocks: 38
+  Available Blocks: 38
+  Total Inodes: 38
+  Free Inodes: 38
+Image Info:
+  File Size: 102400
+  Inode Table Size: 1216
+  Inode Table Storage Size: 2048
+  Data Blocks Offset: 24576
+  Data Blocks Total Size: 77824
+  Data Blocks End Offset: 102400
+  Unallocated Space Size: 0
+Test 3: 4096 block size
+Found sequence 0x55AA at offset 4096
+Found sequence 0xAA55 at offset 4240
+Hidden Data Info:
+  Magic number: 55AA
+  FS version: 0.1.0
+  Build tool name: mkfs
+  Build tool version: 1.0.0
+  Built-in ELF offset: 0
+  Built-in ELF size: 824
+  Built-in ELF storage size: 4096
+  Hidden data offset: 4096
+  Hidden data header size: 152
+  Hidden data header storage size: 4096
+  Hidden data size: 20480
+  Hidden data storage size: 20480
+  Built-in kernel module version: 6.8.0-56-generic
+  Built-in kernel module offset: 8192
+  Built-in kernel module size: 14552
+  Built-in kernel module storage size: 16384
+  Built-in kernel module architecture: 2 (x86_64/x64/amd64)
+  Superblock offset: 24576
+  Hidden end magic number: AA55
+Superblock Info:
+  Magic Number: 59554B4900000000
+  Magic String: YUKI
+  Block Size: 4096
+  Block Count: 17
+  Free Blocks: 17
+  Available Blocks: 17
+  Total Inodes: 17
+  Free Inodes: 17
+Image Info:
+  File Size: 102400
+  Inode Table Size: 544
+  Inode Table Storage Size: 4096
+  Data Blocks Offset: 32768
+  Data Blocks Total Size: 69632
+  Data Blocks End Offset: 102400
+  Unallocated Space Size: 0
+Test 4: 8192 block size
+Found sequence 0x55AA at offset 8192
+Found sequence 0xAA55 at offset 8336
+Hidden Data Info:
+  Magic number: 55AA
+  FS version: 0.1.0
+  Build tool name: mkfs
+  Build tool version: 1.0.0
+  Built-in ELF offset: 0
+  Built-in ELF size: 824
+  Built-in ELF storage size: 8192
+  Hidden data offset: 8192
+  Hidden data header size: 152
+  Hidden data header storage size: 8192
+  Hidden data size: 24576
+  Hidden data storage size: 24576
+  Built-in kernel module version: 6.8.0-56-generic
+  Built-in kernel module offset: 16384
+  Built-in kernel module size: 14552
+  Built-in kernel module storage size: 16384
+  Built-in kernel module architecture: 2 (x86_64/x64/amd64)
+  Superblock offset: 32768
+  Hidden end magic number: AA55
+Superblock Info:
+  Magic Number: 59554B4900000000
+  Magic String: YUKI
+  Block Size: 8192
+  Block Count: 6
+  Free Blocks: 6
+  Available Blocks: 6
+  Total Inodes: 6
+  Free Inodes: 6
+Image Info:
+  File Size: 102400
+  Inode Table Size: 192
+  Inode Table Storage Size: 8192
+  Data Blocks Offset: 49152
+  Data Blocks Total Size: 49152
+  Data Blocks End Offset: 98304
+  Unallocated Space Size: 4096
