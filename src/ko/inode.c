@@ -95,13 +95,15 @@ static void yukifs_put_super(struct super_block *sb)
 
 static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-    buf->f_type = FILESYSTEM_MAGIC_NUMBER;
-    buf->f_bsize = FS_BLOCK_SIZE;
-    buf->f_blocks = FS_BLOCK_COUNT; // Total blocks
-    buf->f_bfree = FS_BLOCK_FREE;   // Free blocks
-    buf->f_bavail = FS_BLOCK_AVAILABLE;  // Available blocks
-    buf->f_files = FS_TOTAL_INODES;   // Total inodes
-    buf->f_ffree = FS_FREE_INODES;    // Free inodes
+    struct superblock_info *sbi = (struct superblock_info*)dentry->d_sb->s_fs_info;
+
+    buf->f_type = dentry->d_sb->s_magic;
+    buf->f_bsize = dentry->d_sb->s_blocksize;
+    buf->f_blocks = sbi->block_count; // Total blocks
+    buf->f_bfree = sbi->block_free;   // Free blocks
+    buf->f_bavail = sbi->block_free;  // Available blocks
+    buf->f_files = sbi->total_inodes;   // Total inodes
+    buf->f_ffree = sbi->free_inodes;    // Free inodes
     buf->f_namelen = FS_MAX_LEN; // Maximum filename length
     return 0;
 }
