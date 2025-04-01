@@ -159,7 +159,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
-    #pragma region find and Pop the Hidden Header
+    #pragma region find and pop the Hidden Header
     int64_t hidden_data_start = -1;
     int64_t hidden_data_end = -1;
 
@@ -216,7 +216,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
-    #pragma region  Initialize the superblock
+    #pragma region Initialize the superblock
 
     uint64_t superblock_offset = hidden_data->superblock_offset;
     kfree(hidden_header_buffer);
@@ -246,10 +246,21 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
+    #pragma region read and pop the superblock
+
+    printk(KERN_DEBUG "YukiFS: Superblock magic: %s\n", sb_info->magic_number);
+    printk(KERN_DEBUG "YukiFS: Superblock block size: %d\n", sb_info->block_size);
+    printk(KERN_DEBUG "YukiFS: Superblock block count: %d\n", sb_info->block_count);
+    printk(KERN_DEBUG "YukiFS: Superblock free block count: %d\n", sb_info->block_free);
+    printk(KERN_DEBUG "YukiFS: Superblock inode count: %d\n", sb_info->total_inodes);
+    printk(KERN_DEBUG "YukiFS: Superblock free inode count: %d\n", sb_info->free_inodes);
+
+    #pragma endregion
+
     sb->s_magic = FILESYSTEM_MAGIC_NUMBER;
     sb->s_op = &yukifs_super_ops;
 
-    #pragma region  Initialize the root inode
+    #pragma region Initialize the root inode
 
     root = yukifs_make_inode(sb, S_IFDIR | 0755, NULL);
     if (!root) {
@@ -269,7 +280,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
-    #pragma region  Initialize the root directory
+    #pragma region Initialize the root directory
 
     //Add a folder to the root directory
     struct dentry *folder_dentry = d_alloc_name(root_dentry, "test_folder");
