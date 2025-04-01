@@ -54,8 +54,7 @@ static struct super_operations const yukifs_super_ops = {
 };
 
 static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
-{
-    
+{   
 
     #pragma region Read Headers from devices
 
