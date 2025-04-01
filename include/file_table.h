@@ -34,7 +34,6 @@ struct superblock_info {
     uint32_t block_size;
     uint32_t block_count;
     uint32_t block_free;
-    uint32_t block_available;
     uint32_t total_inodes;
     uint32_t free_inodes;
 };

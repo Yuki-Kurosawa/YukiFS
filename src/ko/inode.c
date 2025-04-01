@@ -216,7 +216,35 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
+    #pragma region  Initialize the superblock
 
+    uint64_t superblock_offset = hidden_data->superblock_offset;
+    kfree(hidden_header_buffer);
+    // done for hidden data
+
+    // go ahead for superblock reading from devices
+    struct superblock_info *sb_info=kmalloc(sizeof(struct superblock_info), GFP_KERNEL);
+    printk(KERN_DEBUG "YukiFS: Reading superblock from device\n");
+    bytes_read = 0;
+    offset = 0;
+    unsigned long read_size = 0;
+
+    block_nr = superblock_offset / block_size;
+    bh = sb_bread(sb, block_nr);
+    if (!bh) {
+        printk(KERN_ERR "YukiFS: Error reading block %lu\n", block_nr);
+        return -EIO;
+    }
+    read_size = sizeof(struct superblock_info);
+
+    memcpy(sb_info, bh->b_data + offset, read_size);
+    bytes_read += read_size;
+    offset += read_size;
+    brelse(bh);
+
+    printk(KERN_DEBUG "YukiFS: Read %lu bytes of superblock from device\n", bytes_read);
+
+    #pragma endregion
 
     sb->s_magic = FILESYSTEM_MAGIC_NUMBER;
     sb->s_op = &yukifs_super_ops;

@@ -405,7 +405,6 @@ int main(int argc, char *argv[]) {
     superblock.block_count = x;
 
     superblock.block_free = superblock.block_count; // Initially all data blocks are free
-    superblock.block_available = superblock.block_count;
     superblock.free_inodes = superblock.total_inodes; // Initially all inodes are free
 
 

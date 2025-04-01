@@ -200,7 +200,6 @@ int extract_info(const char *device_path)
     printf("  Block Size: %u\n", superblock->block_size);
     printf("  Block Count: %u\n", superblock->block_count);
     printf("  Free Blocks: %u\n", superblock->block_free);
-    printf("  Available Blocks: %u\n", superblock->block_available);
     printf("  Total Inodes: %u\n", superblock->total_inodes);
     printf("  Free Inodes: %u\n", superblock->free_inodes);
 
