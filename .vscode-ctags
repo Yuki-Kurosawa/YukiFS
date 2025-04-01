@@ -99,8 +99,8 @@ free_inodes	include/file_table.h	/^    uint32_t free_inodes;$/;"	m	struct:superb
 fs_build_tool_name	include/file_table.h	/^    unsigned char fs_build_tool_name[10]; \/\/ image build tool name$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[10]
 fs_build_tool_version	include/file_table.h	/^    unsigned char fs_build_tool_version[3]; \/\/ image build tool version$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[3]
 fs_version	include/file_table.h	/^    unsigned char fs_version[3]; \/\/ yukifs version$/;"	m	struct:hidden_data_struct	typeref:typename:unsigned char[3]
-gen_fs_header	src/mkfs/mkfs.c	/^int gen_fs_header(unsigned char *header, unsigned char padding[], unsigned char hidden_data[], s/;"	f	typeref:typename:int
-gen_fs_padding_data	src/mkfs/mkfs.c	/^void gen_fs_padding_data(unsigned char padding[], int device_type)$/;"	f	typeref:typename:void
+gen_fs_header	src/mkfs/mkfs.c	/^int gen_fs_header(unsigned char *header, unsigned char padding[], size_t fs_padding_size, unsign/;"	f	typeref:typename:int
+gen_fs_padding_data	src/mkfs/mkfs.c	/^void gen_fs_padding_data(unsigned char padding[], size_t size, int device_type)$/;"	f	typeref:typename:void
 gen_hidden_data	src/mkfs/mkfs.c	/^void gen_hidden_data(unsigned char data[], uint32_t size,uint32_t block_size,int device_type)$/;"	f	typeref:typename:void
 get_device_type	src/mkfs/mkfs.c	/^int get_device_type(const char* device_path)$/;"	f	typeref:typename:int
 hidden_data_header_size	include/file_table.h	/^    uint32_t hidden_data_header_size;\/\/ the size of hidden data header$/;"	m	struct:hidden_data_struct	typeref:typename:uint32_t

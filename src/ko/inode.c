@@ -6,6 +6,8 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/statfs.h>
+#include <linux/buffer_head.h>
+
 #include "../../include/internal.h"
 #include "../../include/version.h"
 #include "../../include/file_table.h"
@@ -100,6 +102,51 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 {
     struct inode *root;
     struct dentry *root_dentry;
+
+    #pragma region Read Headers from devices
+
+    // Read first 16KiB from devices for hidden header
+    unsigned char *hidden_header_buffer;
+    unsigned long header_size = 16 * 1024;
+
+    hidden_header_buffer = kmalloc(header_size, GFP_KERNEL);
+    if (!hidden_header_buffer) {
+        printk(KERN_ERR "YukiFS: Failed to allocate memory for hidden header\n");
+        return -ENOMEM;
+    }
+
+    unsigned long bytes_read = 0;
+    unsigned long offset = 0;
+    unsigned long block_nr = 0;
+    struct buffer_head *bh;
+    
+    for (block_nr = 0; bytes_read < header_size; block_nr++) {
+        bh = sb_bread(sb, block_nr);
+        if (!bh) {
+            printk(KERN_ERR "YukiFS: Error reading block %lu\n", block_nr);
+            
+            return -EIO;
+        }
+
+        unsigned long block_size = 1024;
+
+        unsigned long read_size = block_size;
+        if (bytes_read + read_size > header_size) {
+            read_size = header_size - bytes_read;
+        }
+
+        memcpy(hidden_header_buffer + offset, bh->b_data, read_size);
+        bytes_read += read_size;
+        offset += read_size;
+        brelse(bh);
+    }
+
+    printk(KERN_DEBUG "YukiFS: Read %lu bytes of hidden header from device\n", bytes_read);
+  
+
+    #pragma endregion
+
+    
 
     sb->s_magic = FILESYSTEM_MAGIC_NUMBER;
     sb->s_op = &yukifs_super_ops;

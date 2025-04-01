@@ -6,6 +6,8 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/statfs.h>
+#include <linux/buffer_head.h>
+
 #include "../../include/internal.h"
 #include "../../include/version.h"
 #include "../../include/file_table.h"
@@ -101,6 +103,51 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     struct inode *root;
     struct dentry *root_dentry;
 
+    #pragma region Read Headers from devices
+
+    // Read first 16KiB from devices for hidden header
+    unsigned char *hidden_header_buffer;
+    unsigned long header_size = 16 * 1024;
+
+    hidden_header_buffer = kmalloc(header_size, GFP_KERNEL);
+    if (!hidden_header_buffer) {
+        printk(KERN_ERR "YukiFS: Failed to allocate memory for hidden header\n");
+        return -ENOMEM;
+    }
+
+    unsigned long bytes_read = 0;
+    unsigned long offset = 0;
+    unsigned long block_nr = 0;
+    struct buffer_head *bh;
+    
+    for (block_nr = 0; bytes_read < header_size; block_nr++) {
+        bh = sb_bread(sb, block_nr);
+        if (!bh) {
+            printk(KERN_ERR "YukiFS: Error reading block %lu\n", block_nr);
+            
+            return -EIO;
+        }
+
+        unsigned long block_size = 1024;
+
+        unsigned long read_size = block_size;
+        if (bytes_read + read_size > header_size) {
+            read_size = header_size - bytes_read;
+        }
+
+        memcpy(hidden_header_buffer + offset, bh->b_data, read_size);
+        bytes_read += read_size;
+        offset += read_size;
+        brelse(bh);
+    }
+
+    printk(KERN_DEBUG "YukiFS: Read %lu bytes of hidden header from device\n", bytes_read);
+  
+
+    #pragma endregion
+
+    
+
     sb->s_magic = FILESYSTEM_MAGIC_NUMBER;
     sb->s_op = &yukifs_super_ops;
 
@@ -178,7 +225,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *yukifs_mount(struct file_system_type *fs_type,
     int flags, const char *dev_name, void *data)
 {
-    return mount_nodev(fs_type, flags, data, yukifs_fill_super);
+    return mount_bdev(fs_type, flags, dev_name, data, yukifs_fill_super);
 }
 
 #pragma region  Module Initialization
@@ -188,6 +235,7 @@ static struct file_system_type yukifs_type = {
     .name = FILESYSTEM_DISPLAYNAME,
     .mount = yukifs_mount,
     .kill_sb = kill_litter_super,
+    .fs_flags = FS_REQUIRES_DEV,
 };
 
 static int __init yukifs_init(void)
@@ -210,4 +258,4 @@ module_exit(yukifs_exit);
 MODULE_LICENSE(YUKIFS_LICENSE);
 MODULE_AUTHOR(YUKIFS_AUTHOR);
 MODULE_DESCRIPTION(YUKIFS_DESCRIPTION);
-MODULE_VERSION(YUKIFS_VERSION);
+MODULE_VERSION(YUKIFS_VERSION_STRING);
