@@ -264,6 +264,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     sb->s_blocksize_bits=ilog2(sb_info->block_size);
     sb->s_fs_info = sb_info;
     sb->s_maxbytes = MAX_LFS_FILESIZE;
+    sb_set_blocksize(sb, sb_info->block_size);
 
     #pragma endregion
 
