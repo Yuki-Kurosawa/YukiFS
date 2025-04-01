@@ -46,7 +46,9 @@
         "string_view": "c",
         "cmath": "c",
         "math.h": "c",
-        "log2.h": "c"
+        "log2.h": "c",
+        "compare": "c",
+        "file.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

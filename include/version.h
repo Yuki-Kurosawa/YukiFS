@@ -10,7 +10,7 @@
 #define YUKIFS_VERSION_PATCH 0
 #define YUKIFS_VERSION_STRING "0.1.0"
 
-unsigned char *version = YUKIFS_VERSION_STRING "\n";
+
 
 #define MKFS_TOOL_NAME "mkfs"
 #define MKFS_VERSION_MAJOR 1
