@@ -7,6 +7,7 @@
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
+#include <linux/log2.h>
 
 #include "../../include/internal.h"
 #include "../../include/version.h"
@@ -219,7 +220,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     #pragma region Initialize the superblock
 
     uint64_t superblock_offset = hidden_data->superblock_offset;
-    kfree(hidden_header_buffer);
+   
     // done for hidden data
 
     // go ahead for superblock reading from devices
@@ -254,6 +255,21 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     printk(KERN_DEBUG "YukiFS: Superblock free block count: %d\n", sb_info->block_free);
     printk(KERN_DEBUG "YukiFS: Superblock inode count: %d\n", sb_info->total_inodes);
     printk(KERN_DEBUG "YukiFS: Superblock free inode count: %d\n", sb_info->free_inodes);
+
+    #pragma endregion
+
+    #pragma region pop to superblock VFS
+
+    sb->s_blocksize = sb_info->block_size;
+    sb->s_blocksize_bits=ilog2(sb_info->block_size);
+    sb->s_fs_info = sb_info;
+    sb->s_maxbytes = MAX_LFS_FILESIZE;
+
+    #pragma endregion
+
+    #pragma region Free all the temp viariables
+
+    kfree(hidden_header_buffer);
 
     #pragma endregion
 
