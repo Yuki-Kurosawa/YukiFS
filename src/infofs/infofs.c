@@ -145,26 +145,26 @@ int extract_info(const char *device_path)
 
     // print hidden data
     printf("Hidden Data Info:\n");
-    printf("  Magic number: %02X%02X\n", hidden_data->hidden_magic_number[0], hidden_data->hidden_magic_number[1]);
-    printf("  FS version: %d.%d.%d\n", hidden_data->fs_version[0], hidden_data->fs_version[1], hidden_data->fs_version[2]);
-    printf("  Build tool name: %s\n", hidden_data->fs_build_tool_name);
-    printf("  Build tool version: %d.%d.%d\n", hidden_data->fs_build_tool_version[0], hidden_data->fs_build_tool_version[1], hidden_data->fs_build_tool_version[2]);
-    printf("  Built-in ELF offset: %u\n", hidden_data->built_in_ELF_offset);
-    printf("  Built-in ELF size: %u\n", hidden_data->built_in_ELF_size);
-    printf("  Built-in ELF storage size: %u\n", hidden_data->built_in_ELF_storage_size);
-    printf("  Hidden data offset: %u\n", hidden_data->hidden_data_offset);
-    printf("  Hidden data header size: %u\n", hidden_data->hidden_data_header_size);
-    printf("  Hidden data header storage size: %u\n", hidden_data->hidden_data_header_storage_size);
-    printf("  Hidden data size: %u\n", hidden_data->hidden_data_size);
-    printf("  Hidden data storage size: %u\n", hidden_data->hidden_data_storage_size);    
-    printf("  Built-in kernel module version: %s\n", hidden_data->built_in_kernel_module_version);
-    printf("  Built-in kernel module offset: %u\n", hidden_data->built_in_kernel_module_offset);
-    printf("  Built-in kernel module size: %u\n", hidden_data->built_in_kernel_module_size);
-    printf("  Built-in kernel module storage size: %u\n", hidden_data->built_in_kernel_module_storage_size); 
-    printf("  Built-in kernel module architecture: %d (%s)\n", hidden_data->built_in_kernel_architechture,
+    printf("  Magic Number: %02X%02X\n", hidden_data->hidden_magic_number[0], hidden_data->hidden_magic_number[1]);
+    printf("  FS Version: %d.%d.%d\n", hidden_data->fs_version[0], hidden_data->fs_version[1], hidden_data->fs_version[2]);
+    printf("  Build Tool Name: %s\n", hidden_data->fs_build_tool_name);
+    printf("  Build Tool Version: %d.%d.%d\n", hidden_data->fs_build_tool_version[0], hidden_data->fs_build_tool_version[1], hidden_data->fs_build_tool_version[2]);
+    printf("  Built-in ELF Offset: %u\n", hidden_data->built_in_ELF_offset);
+    printf("  Built-in ELF Size: %u\n", hidden_data->built_in_ELF_size);
+    printf("  Built-in ELF Storage Size: %u\n", hidden_data->built_in_ELF_storage_size);
+    printf("  Hidden Data Offset: %u\n", hidden_data->hidden_data_offset);
+    printf("  Hidden Data Header Size: %u\n", hidden_data->hidden_data_header_size);
+    printf("  Hidden Data Header Storage Size: %u\n", hidden_data->hidden_data_header_storage_size);
+    printf("  Hidden Data Size: %u\n", hidden_data->hidden_data_size);
+    printf("  Hidden Data Storage Size: %u\n", hidden_data->hidden_data_storage_size);    
+    printf("  Built-in Kernel Module Version: %s\n", hidden_data->built_in_kernel_module_version);
+    printf("  Built-in Kernel Module Offset: %u\n", hidden_data->built_in_kernel_module_offset);
+    printf("  Built-in Kernel Module Size: %u\n", hidden_data->built_in_kernel_module_size);
+    printf("  Built-in Kernel Module Storage Size: %u\n", hidden_data->built_in_kernel_module_storage_size); 
+    printf("  Built-in Kernel Module Architecture: %d (%s)\n", hidden_data->built_in_kernel_architechture,
     convert_arch_to_string(hidden_data->built_in_kernel_architechture)); 
-    printf("  Superblock offset: %lu\n", hidden_data->superblock_offset);
-    printf("  Hidden end magic number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
+    printf("  Superblock Offset: %lu\n", hidden_data->superblock_offset);
+    printf("  End Magic Number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
 
     uint64_t superblock_offset = hidden_data->superblock_offset;
 
@@ -191,6 +191,8 @@ int extract_info(const char *device_path)
 
     // print superblock
     printf("Superblock Info:\n");
+    printf("  Superblock Size: %lu\n", sizeof(struct superblock_info));
+    printf("  Superblock Storage Size: %u\n", superblock->block_size);
     printf("  Magic Number: %02X%02X%02X%02X%02X%02X%02X%02X\n",
         superblock->magic_number[0], superblock->magic_number[1],
         superblock->magic_number[2], superblock->magic_number[3],
@@ -202,6 +204,14 @@ int extract_info(const char *device_path)
     printf("  Free Blocks: %u\n", superblock->block_free);
     printf("  Total Inodes: %u\n", superblock->total_inodes);
     printf("  Free Inodes: %u\n", superblock->free_inodes);
+    printf("  Inode Table Size: %u\n", superblock->inode_table_size);
+    printf("  Inode Table Storage Size: %u\n", superblock->inode_table_storage_size);
+    printf("  Inode Table Clusters: %u\n", superblock->inode_table_clusters);    
+    printf("  Inode Table Offset: %u\n", superblock->inode_table_offset);
+    printf("  Data Blocks Offset: %lu\n", superblock->data_blocks_offset);
+    printf("  Data Blocks Total Size: %u\n", superblock->data_blocks_total_size);
+    printf("  Data Blocks End Offset: %u\n", superblock->data_blocks_end_offset);
+    printf("  Unallocated Space Size: %u\n", superblock->unallocated_space_size);
 
     // print image info
     printf("Image Info:\n");
@@ -218,8 +228,12 @@ int extract_info(const char *device_path)
         inode_table_clusters = inode_table_size / superblock->block_size;
     }
     
+    printf("  Inode Item Size: %lu\n", sizeof(struct file_object));
+    printf("  Inode Item Storage Size: %u\n", FILE_OBJECT_ALIGN_SIZE);
     printf("  Inode Table Size: %ld\n", inode_table_size);
     printf("  Inode Table Storage Size: %u\n", superblock->block_size * inode_table_clusters);
+    printf("  Inode Table Clusters: %u\n", inode_table_clusters);
+    printf("  Inode Table Offset: %lu\n", superblock_offset + superblock->block_size);    
     uint64_t data_blocks_offset = superblock_offset + superblock->block_size + superblock->block_size * inode_table_clusters;
     printf("  Data Blocks Offset: %lu\n",data_blocks_offset);
     printf("  Data Blocks Total Size: %u\n", superblock->block_count * superblock->block_size);

@@ -193,6 +193,15 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     printk(KERN_DEBUG "YukiFS: Superblock free block count: %d\n", sb_info->block_free);
     printk(KERN_DEBUG "YukiFS: Superblock inode count: %d\n", sb_info->total_inodes);
     printk(KERN_DEBUG "YukiFS: Superblock free inode count: %d\n", sb_info->free_inodes);
+    printk(KERN_DEBUG "YukiFS: Superblock inode table size: %d\n", sb_info->inode_table_size);
+    printk(KERN_DEBUG "YukiFS: Superblock inode table clusters: %d\n", sb_info->inode_table_clusters);
+    printk(KERN_DEBUG "YukiFS: Superblock inode table storage size: %d\n", sb_info->inode_table_storage_size);
+    printk(KERN_DEBUG "YukiFS: Superblock inode table offset: %d\n", sb_info->inode_table_offset);
+    printk(KERN_DEBUG "YukiFS: Superblock data blocks offset: %d\n", sb_info->data_blocks_offset);
+    printk(KERN_DEBUG "YukiFS: Superblock data blocks total size: %d\n", sb_info->data_blocks_total_size);
+    printk(KERN_DEBUG "YukiFS: Superblock data blocks end offset: %d\n", sb_info->data_blocks_end_offset);
+    printk(KERN_DEBUG "YukiFS: Unallocated space size: %d\n", sb_info->unallocated_space_size);
+
 
     #pragma endregion
 

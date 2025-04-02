@@ -36,6 +36,14 @@ struct superblock_info {
     uint32_t block_free;
     uint32_t total_inodes;
     uint32_t free_inodes;
+    uint32_t inode_table_size;
+    uint32_t inode_table_clusters;
+    uint32_t inode_table_storage_size;
+    uint32_t inode_table_offset;
+    uint32_t data_blocks_offset;
+    uint32_t data_blocks_total_size;
+    uint32_t data_blocks_end_offset;
+    uint32_t unallocated_space_size;
 };
 
 struct file_object

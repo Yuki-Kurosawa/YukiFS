@@ -11,6 +11,7 @@ cat /proc/filesystems | grep yuki
 
 dd if=/dev/zero of=test.img bs=1KiB count=100
 mkfs.yukifs -y test.img
+infofs.yukifs test.img
 
 mount -t yuki -o loop test.img fs
 mount | grep yuki

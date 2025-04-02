@@ -397,19 +397,40 @@ int main(int argc, char *argv[]) {
         // solve x for block_count=file_object_align_size*x /block_size + x
         x = (block_count * block_size) / (file_object_align_size + block_size);
 
-    }
-
-    
+    }    
 
     superblock.total_inodes = x;
     superblock.block_count = x;
 
     superblock.block_free = superblock.block_count; // Initially all data blocks are free
     superblock.free_inodes = superblock.total_inodes; // Initially all inodes are free
+    superblock.inode_table_size = file_object_align_size * x;
 
+    {
+        int64_t inode_table_size = superblock.inode_table_size;
+        uint32_t inode_table_clusters = 0;
+        uint32_t mod=inode_table_size % superblock.block_size;
+        if(mod != 0)
+        {
+            inode_table_clusters = inode_table_size / superblock.block_size + 1;
+        }
+        else{
+            inode_table_clusters = inode_table_size / superblock.block_size;
+        }
+        superblock.inode_table_clusters = inode_table_clusters;
+        superblock.inode_table_storage_size = inode_table_clusters * superblock.block_size;
+    }
 
     // Generate the file system header
     size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, fs_padding_size, hidden_data_buffer, hidden_data_size, &superblock, block_size);
+    superblock.inode_table_offset = actual_header_size;
+    superblock.data_blocks_offset = actual_header_size + superblock.inode_table_storage_size;
+    superblock.data_blocks_total_size = superblock.block_count * block_size;
+    superblock.data_blocks_end_offset = superblock.data_blocks_offset + superblock.data_blocks_total_size;
+    superblock.unallocated_space_size = device_size - superblock.data_blocks_end_offset;
+
+    // Generate the file system header again to include the actual size of the header
+    actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, fs_padding_size, hidden_data_buffer, hidden_data_size, &superblock, block_size);
 
     // Free the allocated memory for the hidden data buffer
     free(hidden_data_buffer); // Free the hidden data buffer
