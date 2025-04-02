@@ -44,7 +44,19 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
         inode->i_blocks = inode->i_size / sb->s_blocksize;
         inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
         inode->i_ino = get_next_ino();
-        inode->i_fop = &yukifs_file_ops; // Add this line to set file operations
+        if (S_ISDIR(inode->i_mode)) {
+            inode->i_op = &simple_dir_inode_operations;
+            inode->i_fop = &simple_dir_operations;
+            // Initialize directory specific stuff if needed
+        } else if (S_ISREG(inode->i_mode)) {
+            //inode->i_op = &yukifs_file_inode_operations; // You'll need to create this
+            inode->i_fop = &yukifs_file_ops;
+            // Initialize file specific stuff (e.g., first block)
+        } else {
+            printk(KERN_ERR "YukiFS: Unknown inode type\n");
+            iput(inode);
+            return NULL;
+        }
         inode->i_private = fo;
     }
 
@@ -73,9 +85,6 @@ int yukifs_init_root(struct super_block *sb)
         printk(KERN_ERR "YukiFS: inode allocation failed\n");
         return -ENOMEM;
     }
-
-    root->i_op = &simple_dir_inode_operations;
-    root->i_fop = &simple_dir_operations;
 
     root_dentry = d_make_root(root);
     if (!root_dentry) {
