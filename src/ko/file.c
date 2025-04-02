@@ -33,23 +33,21 @@ struct file_operations yukifs_file_ops = {
 
 #pragma endregion
 
-static struct inode *yukifs_make_inode(struct super_block *sb, int mode, unsigned char* data)
+static struct inode *yukifs_make_inode(struct super_block *sb, struct file_object *fo)
 {
     struct inode *inode = new_inode(sb);
     if (inode) {
-        inode->i_mode = mode;
+        inode->i_mode = fo->descriptor;
         inode->i_uid.val = 0;
         inode->i_gid.val = 0;
-        
-        if(!data)
-            inode->i_size = 0;
-        else
-            inode->i_size = strlen(data);
+        inode->i_size = fo->size;
         inode->i_blocks = inode->i_size / sb->s_blocksize;
         inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
         inode->i_ino = get_next_ino();
         inode->i_fop = &yukifs_file_ops; // Add this line to set file operations
+        inode->i_private = fo;
     }
+
     return inode;
 }
 
@@ -58,13 +56,24 @@ int yukifs_init_root(struct super_block *sb)
     struct inode *root;
     struct dentry *root_dentry;
 
-    #pragma region Initialize the root inode
+    // create root file object
+    struct file_object *root_fo = kmalloc(sizeof(struct file_object), GFP_KERNEL);
+    if (!root_fo)
+    {
+        return -ENOMEM;
+    }
+    root_fo->name[0] = '\0';
+    root_fo->size = 0;
+    root_fo->inner_file = 1;
+    root_fo->descriptor = S_IFDIR | 0777; // drwxrwxrwx, let everyone can do anything
+    root_fo->first_block = 0; // built-in file objects always start at block 0
 
-    root = yukifs_make_inode(sb, S_IFDIR | 0755, NULL);
+    root = yukifs_make_inode(sb,root_fo);
     if (!root) {
         printk(KERN_ERR "YukiFS: inode allocation failed\n");
         return -ENOMEM;
     }
+
     root->i_op = &simple_dir_inode_operations;
     root->i_fop = &simple_dir_operations;
 
@@ -75,57 +84,7 @@ int yukifs_init_root(struct super_block *sb)
         return -ENOMEM;
     }
     sb->s_root = root_dentry;
-
-    #pragma endregion
-
-    #pragma region Initialize the root directory
-
-    //Add a folder to the root directory
-    struct dentry *folder_dentry = d_alloc_name(root_dentry, "test_folder");
-    if (!folder_dentry) {
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: folder creation failed\n");
-        return -ENOMEM;
-    }
-    folder_dentry->d_inode = yukifs_make_inode(sb, S_IFDIR | 0755 , NULL);
     
-    if (!folder_dentry->d_inode) {
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: folder inode allocation failed\n");
-        return -ENOMEM;
-    }
-    folder_dentry->d_inode->i_op = &simple_dir_inode_operations;
-    folder_dentry->d_inode->i_fop = &simple_dir_operations;
-    d_add(folder_dentry, folder_dentry->d_inode);
-
-    //Add a file to the root directory
-    struct dentry *file_dentry = d_alloc_name(root_dentry, "version.txt");
-    if (!file_dentry) {
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: file creation failed\n");
-        return -ENOMEM;
-    }
-    file_dentry->d_inode = yukifs_make_inode(sb, S_IFREG | 0644, YUKIFS_VERSION_STRING "\n");
-    if (!file_dentry->d_inode) {
-        dput(file_dentry);
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: file inode allocation failed\n");
-        return -ENOMEM;
-    }
-    file_dentry->d_inode->i_op = &simple_dir_inode_operations;
-    file_dentry->d_inode->i_fop = &yukifs_file_ops;
-    d_add(file_dentry, file_dentry->d_inode);
-
-
-    #pragma endregion
-
     return 0;
 
 }

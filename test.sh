@@ -16,12 +16,12 @@ infofs.yukifs test.img
 mount -t yuki -o loop test.img fs
 mount | grep yuki
 
-ls -alc . | grep fs
-ls -alc fs
+ls -alci . | grep fs
+ls -alci fs
 touch fs/test.txt
 cat fs/version.txt
-cd fs/test_folder
-cd ../../
+#cd fs/test_folder
+#cd ../../
 file fs/version.txt
 
 df -kh fs
