@@ -277,10 +277,20 @@ int extract_info(const char *device_path, bool no_info)
     // print inode table info
     if(no_info)
     {
-        printf("Inode Table Info %u:\n", superblock->total_inodes);
-        for (int i = 0; i < superblock->total_inodes; ++i) {
+        printf("Inode Table Info with %u inodes:\n", superblock->total_inodes);
+        for (int i = 0; i < superblock->total_inodes; i++) {
             struct file_object *inode = (struct file_object *)(buffer + i * FILE_OBJECT_ALIGN_SIZE);
-            printf("  Inode %d: Name: %s, Size: %u, Descriptor: %o, First Block: %u\n", i, strlen(inode->name) > 0?inode->name:"<root>", inode->size, inode->descriptor, inode->first_block);            
+            if(inode->in_use)
+            {
+                printf("  Inode %d: Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", i, 
+                    strlen(inode->name) > 0?inode->name:"<root>", inode->size, inode->descriptor, inode->first_block,
+                    inode->inner_file
+                );         
+            }
+            else
+            {
+                printf("  Inode %d: Empty inode\n", i);
+            }
         }
     }
 

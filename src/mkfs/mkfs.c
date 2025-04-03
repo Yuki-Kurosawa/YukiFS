@@ -544,6 +544,7 @@ int main(int argc, char *argv[]) {
     root_dir.name[0] = '\0';
     root_dir.descriptor = S_IFDIR | 0777;
     root_dir.first_block = 0;
+    root_dir.in_use = 1;
     inode_table[0] = root_dir;
 
 

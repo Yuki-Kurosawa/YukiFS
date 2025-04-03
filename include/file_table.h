@@ -3,7 +3,7 @@
 #ifndef FILE_TABLE_H
 #define FILE_TABLE_H
 
-#define FS_MAX_LEN 8
+#define FS_MAX_LEN 12
 
 #define FILESYSTEM_MAGIC_NUMBER 0x59554B49 // FILESYSTEM MAGIC "YUKI"
 #define FILESYSTEM_MAGIC_BYTES {0x59,0x55,0x4B,0x49,0x00,0x00,0x00,0x00} // FILESYSTEM MAGIC "YUKI" FOR SUPERBLOCK INFO STRUCT
@@ -48,6 +48,7 @@ struct superblock_info {
 
 struct file_object
 {
+    uint32_t in_use;
     char name[FS_MAX_LEN]; //file name
     uint32_t size; //file size
     int inner_file;// determine the file is a builtin file.
