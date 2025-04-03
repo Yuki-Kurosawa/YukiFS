@@ -9,9 +9,10 @@ insmod src/ko/yukifs.ko
 mkdir fs
 cat /proc/filesystems | grep yuki
 
-dd if=/dev/zero of=test.img bs=1KiB count=100
+dd if=/dev/zero of=test.img bs=1KiB count=26
 mkfs.yukifs -y test.img
 infofs.yukifs test.img
+infofs.yukifs -s test.img
 
 mount -t yuki -o loop test.img fs
 mount | grep yuki

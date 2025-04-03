@@ -12,6 +12,7 @@
 #include <getopt.h> // For getopt_long()
 #include <sys/types.h> // For getuid()
 #include <unistd.h>    // For getuid()
+#include <sys/stat.h> 
 
 #include "../../include/version.h"
 #include "../../include/file_table.h"
@@ -402,8 +403,8 @@ int main(int argc, char *argv[]) {
     superblock.total_inodes = x;
     superblock.block_count = x;
 
-    superblock.block_free = superblock.block_count; // Initially all data blocks are free
-    superblock.free_inodes = superblock.total_inodes; // Initially all inodes are free
+    superblock.block_free = superblock.block_count -1; // Initially all data blocks are free except for /
+    superblock.free_inodes = superblock.total_inodes - 1; // Initially all inodes are free except for /
     superblock.inode_table_size = file_object_align_size * x;
 
     {
@@ -533,6 +534,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     memset(inode_table, 0, inode_table_size);  
+
+    // Initialize the inode table with root directory
+    struct file_object root_dir;
+    memset(&root_dir, 0, sizeof(struct file_object));
+    root_dir.size = block_size;
+    root_dir.inner_file = 0;
+    root_dir.name[0] = '\0';
+    root_dir.descriptor = S_IFDIR | 0777;
+    root_dir.first_block = 0;
+    inode_table[0] = root_dir;
+
+
 
     if (!try_run) {
         lseek(fd, 0, SEEK_SET); //back to byte 0;

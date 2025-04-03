@@ -48,7 +48,10 @@
         "math.h": "c",
         "log2.h": "c",
         "compare": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "ioctl.h": "c",
+        "limits.h": "c",
+        "stdbool.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
