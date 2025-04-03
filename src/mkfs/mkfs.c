@@ -540,6 +540,7 @@ int main(int argc, char *argv[]) {
     memset(&root_dir, 0, sizeof(struct file_object));
     root_dir.size = block_size;
     root_dir.inner_file = 0;
+    memset(root_dir.name, 0, sizeof(root_dir.name));
     root_dir.name[0] = '\0';
     root_dir.descriptor = S_IFDIR | 0777;
     root_dir.first_block = 0;

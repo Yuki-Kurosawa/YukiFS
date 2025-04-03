@@ -255,13 +255,36 @@ int extract_info(const char *device_path, bool no_info)
         printf("  Data Blocks End Offset: %lu\n", data_blocks_offset + superblock->block_free * superblock->block_size);
         printf("  Unallocated Space Size: %lu\n", file_size - data_blocks_offset - superblock->block_count * superblock->block_size);
     }
+  
+    // seek to inode table offset
+    if (lseek(fd, superblock_offset + superblock->block_size, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Cannot seek to the beginning of '%s': %s\n", device_path, strerror(errno));
+        free(buffer);
+        close(fd);
+        return 1;
+    }
 
-    free(buffer);
+    // read inode table to buffer
+    buffer = (unsigned char *)malloc(inode_table_size);
+    bytes_read = read(fd, buffer, inode_table_size);
+    if (bytes_read == -1) {
+        fprintf(stderr, "Error: Cannot read from '%s': %s\n", device_path, strerror(errno));
+        free(buffer);
+        close(fd);
+        return 1;
+    }
 
+    // print inode table info
     if(no_info)
     {
-        printf(" Test OK !\n");
+        printf("Inode Table Info %u:\n", superblock->total_inodes);
+        for (int i = 0; i < superblock->total_inodes; ++i) {
+            struct file_object *inode = (struct file_object *)(buffer + i * FILE_OBJECT_ALIGN_SIZE);
+            printf("  Inode %d: Name: %s, Size: %u, Descriptor: %o, First Block: %u\n", i, strlen(inode->name) > 0?inode->name:"<root>", inode->size, inode->descriptor, inode->first_block);            
+        }
     }
+
+    free(buffer);
 
     // close the device or image
     
