@@ -68,17 +68,29 @@ int yukifs_init_root(struct super_block *sb)
     struct inode *root;
     struct dentry *root_dentry;
 
-    // create root file object
-    struct file_object *root_fo = kmalloc(sizeof(struct file_object), GFP_KERNEL);
+    // read root inode from the device inode table then create a dentry for it
+    struct superblock_info *sbi = sb->s_fs_info;
+    uint32_t inode_table_offset = sbi->inode_table_offset; 
+    uint32_t inode_size = sizeof(struct file_object);
+
+    struct file_object *root_fo = kmalloc(inode_size, GFP_KERNEL);
     if (!root_fo)
-    {
         return -ENOMEM;
+
+    loff_t offset = inode_table_offset;
+    sector_t block_nr = offset / sb->s_blocksize;
+    unsigned int block_offset = offset % sb->s_blocksize;
+    struct buffer_head *bh;
+
+    bh = sb_bread(sb, block_nr);
+    if (!bh) {
+        printk(KERN_ERR "YukiFS: Error reading root inode block\n");
+        kfree(root_fo);
+        return -EIO;
     }
-    root_fo->name[0] = '\0';
-    root_fo->size = 0;
-    root_fo->inner_file = 1;
-    root_fo->descriptor = S_IFDIR | 0777; // drwxrwxrwx, let everyone can do anything
-    root_fo->first_block = 0; // built-in file objects always start at block 0
+
+    memcpy(root_fo, bh->b_data + block_offset, inode_size);
+    brelse(bh);
 
     root = yukifs_make_inode(sb,root_fo);
     if (!root) {
