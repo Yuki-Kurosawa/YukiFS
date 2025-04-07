@@ -47,7 +47,7 @@ echo -n "Compiling built-in first stage ... "
 gcc -c -o built-in.o --static -Wno-builtin-declaration-mismatch -nostdlib -nostartfiles -s built-in-data.c
 
 # asm the entrypoint.s
-nasm -f elf64 entrypoint.s -o entrypoint.o
+as -o entrypoint.o entrypoint.s
 
 echo "OK"
 
