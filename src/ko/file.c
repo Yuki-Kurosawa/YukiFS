@@ -104,14 +104,14 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     }
     else
     {
-        printk(KERN_INFO "YukiFS: new inode index %d\n", new_inode_index);
+        printk(KERN_INFO "YukiFS: new logical inode index %d\n", new_inode_index);
     }
 
     // read whole inode table from device
     uint32_t inode_table_clusters = sbi->inode_table_clusters;
     uint32_t inode_table_storage_size = sbi->inode_table_storage_size;
     uint32_t inode_table_size = sbi->inode_table_size;
-    uint32_t inode_table_offset = sbi->inode_table_offset;
+    inode_table_offset = sbi->inode_table_offset;
     uint32_t inode_table_offset_in_block = inode_table_offset % sbi->block_size;
     uint32_t inode_table_block_nr = inode_table_offset / sbi->block_size;
     bh = sb_bread(dir->i_sb, inode_table_block_nr);
@@ -126,7 +126,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     // find the first free inode in the inode table
     uint32_t ii = UINT32_MAX;
     for (uint32_t i = 0; i < sbi->total_inodes; i++) {
-        printk(KERN_INFO "YukiFS: inode %d in use %d\n", i, new_fo[i].in_use);
+        printk(KERN_INFO "YukiFS: physical inode %d in use %d\n", i, new_fo[i].in_use);
         if (new_fo[i].in_use == 0) {
             new_fo[i].in_use = 1;
             new_fo[i].size = 0;
@@ -144,7 +144,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     }
     else
     {
-        printk(KERN_INFO "YukiFS: new inode %d\n", ii);
+        printk(KERN_INFO "YukiFS: new physical inode %d\n", ii);
     }
 
     // write the new inode to the device inode table
