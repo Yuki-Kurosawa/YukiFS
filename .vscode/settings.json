@@ -51,7 +51,8 @@
         "file.h": "c",
         "ioctl.h": "c",
         "limits.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "bits.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
