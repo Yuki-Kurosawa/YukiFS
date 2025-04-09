@@ -329,6 +329,32 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     return 0;
 };
 
+static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct kstat *stat,u32 mask, unsigned int query_flags)
+{
+    struct inode *inode = path->dentry->d_inode;
+    struct file_object *fo = (struct file_object *)inode->i_private;
+
+    printk(KERN_INFO "YukiFS: getattr %s\n", path->dentry->d_name.name);
+
+    stat->mode = fo->descriptor;
+    stat->ino = inode->i_ino;
+    stat->size = fo->size;
+    stat->blocks = (fo->size + inode->i_sb->s_blocksize - 1) / inode->i_sb->s_blocksize; // Calculate number of blocks
+    stat->blksize = inode->i_sb->s_blocksize;
+    stat->nlink = 0; // For simplicity, assume 1 hard link
+    stat->uid = KUIDT_INIT(0);     // Root user for now
+    stat->gid = KGIDT_INIT(0);     // Root group for now
+
+    // Set timestamps (you might need to store these in your file_object later)
+    struct timespec64 now;
+    ktime_get_real_ts64(&now);
+    stat->atime = now;
+    stat->mtime = now;
+    stat->ctime = now;
+
+    return 0;
+};
+
 struct inode_operations yukifs_dir_inode_operations = {
     .lookup = simple_lookup,
     .create = yukifs_create,
@@ -336,6 +362,7 @@ struct inode_operations yukifs_dir_inode_operations = {
     .rmdir = NULL,  
     .link = NULL,
     .unlink = NULL, 
+    .getattr = yukifs_getattr,
 };
 
 #pragma endregion

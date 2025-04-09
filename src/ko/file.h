@@ -10,6 +10,7 @@
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
 #include <linux/log2.h>
+#include <linux/time64.h>
 
 #include "../../include/internal.h"
 #include "../../include/version.h"

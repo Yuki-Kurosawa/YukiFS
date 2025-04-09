@@ -52,7 +52,8 @@
         "ioctl.h": "c",
         "limits.h": "c",
         "stdbool.h": "c",
-        "bits.h": "c"
+        "bits.h": "c",
+        "time64.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
