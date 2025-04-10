@@ -373,7 +373,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
     char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
     if (!inode_table) {
         printk(KERN_ERR "YukiFS: Error allocating inode table\n");
-        return NULL;
+        return ERR_PTR(-ENOMEM);
     }
 
     printk(KERN_INFO "YukiFS: inode table offset %d\n", inode_table_offset);
@@ -383,7 +383,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
     if(yukifs_blocks_read(parent->i_sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
     {
         printk(KERN_ERR "YukiFS: Error reading inode table\n");
-        return NULL;
+        return ERR_PTR(-EIO);
     }
 
     uint32_t data_blocks_offset = sbi->data_blocks_offset;
@@ -401,7 +401,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
     {
         printk(KERN_ERR "YukiFS: Error reading data block %d\n", data_block_nr);
         kfree(data_block);
-        return NULL;
+        return ERR_PTR(-EIO);
     }
 
     printk(KERN_INFO "YukiFS: directory data block %d\n", data_block[0]);
@@ -427,7 +427,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
                 }
 
                 dentry->d_inode = inode;
-                //d_add(dentry, inode);
+                d_add(dentry, dentry->d_inode);
 
                 printk(KERN_INFO "YukiFS: File %s in directory %s at Inode Index (dentry) %d is poped successfully.\n", name, fo->name,i);
 
@@ -439,7 +439,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
         }
     }
 
-    return NULL;
+    return ERR_PTR(-ENOENT);
 }
 
 struct inode_operations yukifs_dir_inode_operations = {
