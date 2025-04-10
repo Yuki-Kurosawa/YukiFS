@@ -106,13 +106,7 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     struct file_object * dirobj = (struct file_object *)dir->i_private;
 
     printk(KERN_INFO "YukiFS: Iterating directory %s\n", dirobj->name);
-
-    uint32_t block_size = dir->i_sb->s_blocksize;
-    uint32_t *dir_entries; // Assuming your directory entries are uint32_t inode indices
-    struct buffer_head *bh;
-    int i;
-    uint32_t block_nr=dirobj->size / block_size;
-
+    
     if (ctx->pos >= dirobj->size) // Or however you determine the end of directory entries
     {
         return 0;
@@ -161,13 +155,13 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     // treat data block as inode index list type uint32_t*
     uint32_t *inode_index_list = (uint32_t *)data_block;
     uint32_t inode_index_list_size = data_block_size / sizeof(uint32_t);
-    uint32_t new_inode_index = UINT32_MAX;
+    
     for (uint32_t i = ctx->pos / sizeof(uint32_t); i < inode_index_list_size; i++) {
         if (inode_index_list[i] != 0) 
         {
             struct file_object *ffo = (struct file_object *)inode_table + inode_index_list[i];
 
-            printk("  Inode %d: Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", i, 
+            printk("  Inode Index (dentry) %d: Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", i, 
                 strlen(ffo->name) > 0?ffo->name:"<root>", ffo->size, ffo->descriptor, ffo->first_block,
                 ffo->inner_file
             ); 
@@ -334,7 +328,9 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     struct inode *inode = path->dentry->d_inode;
     struct file_object *fo = (struct file_object *)inode->i_private;
 
-    printk(KERN_INFO "YukiFS: getattr %s %s\n", path->dentry->d_name.name,fo->name);
+    printk(KERN_INFO "YukiFS: getattr dentry: %s inode: %s\n", path->dentry->d_name.name,fo->name);
+    printk("  getattr(): Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", 
+        fo->name,fo->size, fo->descriptor,fo->first_block,fo->inner_file);
 
     stat->mode = fo->descriptor;
     stat->ino = inode->i_ino;
@@ -355,8 +351,80 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     return 0;
 };
 
+static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry, unsigned int flags)
+{    
+    struct superblock_info *sbi = parent->i_sb->s_fs_info;
+    const char *name = dentry->d_name.name;
+    int len = dentry->d_name.len;
+    int i;
+
+    struct file_object *fo = (struct file_object*)parent->i_private;
+
+    printk(KERN_INFO "YukiFS: lookup called for '%s' in directory inode %lu\n", name, parent->i_ino);
+
+    // read whole inode table from the device 
+    uint32_t inode_table_offset = sbi->inode_table_offset; 
+    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
+    uint32_t inode_table_clusters = sbi->inode_table_clusters;
+    uint32_t inode_block_nr=inode_table_offset/sbi->block_size;
+
+    char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
+    if (!inode_table) {
+        printk(KERN_ERR "YukiFS: Error allocating inode table\n");
+        return NULL;
+    }
+
+    printk(KERN_INFO "YukiFS: inode table offset %d\n", inode_table_offset);
+    printk(KERN_INFO "YukiFS: inode table block %d\n", inode_block_nr);
+    printk(KERN_INFO "YukiFS: inode table clusters %d\n", inode_table_clusters);    
+
+    if(yukifs_blocks_read(parent->i_sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    {
+        printk(KERN_ERR "YukiFS: Error reading inode table\n");
+        return NULL;
+    }
+
+    uint32_t data_blocks_offset = sbi->data_blocks_offset;
+    uint32_t dir_data_block_num = fo->first_block;
+
+    // read the data blocks from the device data blocks
+    uint32_t data_block_size = sbi->block_size;
+    uint32_t data_block_count = fo->size / sbi->block_size;
+    uint32_t data_block_offset = data_blocks_offset + dir_data_block_num * data_block_size;
+    uint32_t data_block_nr = data_block_offset / data_block_size;
+
+    
+    char *data_block = kmalloc(fo->size, GFP_KERNEL);
+    if(yukifs_blocks_read(parent->i_sb, data_block_nr, data_block_count, data_block) < 0)
+    {
+        printk(KERN_ERR "YukiFS: Error reading data block %d\n", data_block_nr);
+        kfree(data_block);
+        return NULL;
+    }
+
+    printk(KERN_INFO "YukiFS: directory data block %d\n", data_block[0]);
+    
+    // treat data block as inode index list type uint32_t*
+    uint32_t *inode_index_list = (uint32_t *)data_block;
+    uint32_t inode_index_list_size = data_block_size / sizeof(uint32_t);
+
+    // try to find specified file in the directory
+    for (i = 0; i < inode_index_list_size; i++) {
+        if (inode_index_list[i] != 0) {
+            struct file_object *ffo = (struct file_object *)inode_table + inode_index_list[i];
+            if (strncmp(name, ffo->name, len) == 0 && len == strlen(ffo->name)) {
+                printk(KERN_INFO "YukiFS: Found file %s in directory %s at Inode Index (dentry) %d\n", name, fo->name,i);
+                //inode = yukifs_make_inode(parent->i_sb, ffo);
+                break;
+            }
+        }
+    }
+
+    return NULL;
+}
+
 struct inode_operations yukifs_dir_inode_operations = {
-    .lookup = simple_lookup,
+    .lookup = yukifs_lookup,
     .create = yukifs_create,
     .mkdir = NULL,
     .rmdir = NULL,  
