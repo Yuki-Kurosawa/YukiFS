@@ -29,7 +29,9 @@ static char* convert_arch_to_string(int arch)
 
 static void yukifs_put_super(struct super_block *sb)
 {
+    printk(KERN_INFO "YukiFS: put_super called\n");
     printk(KERN_DEBUG "YukiFS super block destroyed\n");
+    printk(KERN_INFO "YukiFS: put_super called done\n");
 }
 
 static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -55,6 +57,8 @@ static struct super_operations const yukifs_super_ops = {
 
 static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 {   
+
+    printk(KERN_INFO "YukiFS: fill_super called\n");
 
     #pragma region Read Headers from devices
 
@@ -226,6 +230,8 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     int ret = yukifs_init_root(sb);
     
+    printk(KERN_INFO "YukiFS: fill_super called done\n");
+
     return 0 | ret;
 }
 

@@ -70,6 +70,8 @@ static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_
 
 #pragma region File Operations
 
+static struct inode *yukifs_make_inode(struct super_block *sb, struct file_object *fo);
+
 static int yukifs_open(struct inode *inode, struct file *filp)
 {
     return 0;
@@ -337,7 +339,7 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     stat->size = fo->size;
     stat->blocks = (fo->size + inode->i_sb->s_blocksize - 1) / inode->i_sb->s_blocksize; // Calculate number of blocks
     stat->blksize = inode->i_sb->s_blocksize;
-    stat->nlink = 0; // For simplicity, assume 1 hard link
+    stat->nlink = 1; // For simplicity, assume 1 hard link
     stat->uid = KUIDT_INIT(0);     // Root user for now
     stat->gid = KGIDT_INIT(0);     // Root group for now
 
@@ -414,8 +416,25 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
             struct file_object *ffo = (struct file_object *)inode_table + inode_index_list[i];
             if (strncmp(name, ffo->name, len) == 0 && len == strlen(ffo->name)) {
                 printk(KERN_INFO "YukiFS: Found file %s in directory %s at Inode Index (dentry) %d\n", name, fo->name,i);
-                //inode = yukifs_make_inode(parent->i_sb, ffo);
-                break;
+                
+                // pop the inode from the inode table object
+                struct inode *inode = yukifs_make_inode(parent->i_sb, ffo);
+                if (!inode) {
+                    printk(KERN_ERR "YukiFS: inode allocation failed\n");
+                    kfree(data_block);
+                    kfree(inode_table);
+                    return NULL;
+                }
+
+                dentry->d_inode = inode;
+                //d_add(dentry, inode);
+
+                printk(KERN_INFO "YukiFS: File %s in directory %s at Inode Index (dentry) %d is poped successfully.\n", name, fo->name,i);
+
+                kfree(data_block);
+                kfree(inode_table);
+                return NULL;
+
             }
         }
     }
