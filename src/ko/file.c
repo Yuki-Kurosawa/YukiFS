@@ -443,6 +443,12 @@ static int yukifs_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t len, loff_t *offset)
+{
+    printk(KERN_INFO "YukiFS: write called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)file->f_inode->i_private)->name);
+    return 0;
+}
+
 #pragma endregion
 
 #pragma region File Operation Callback Structures
@@ -466,6 +472,7 @@ struct file_operations yukifs_file_ops = {
     .owner = THIS_MODULE,
     .open = yukifs_open,
     .read = yukifs_read,
+    .write = yukifs_write,
     .release = yukifs_release,
 };
 
