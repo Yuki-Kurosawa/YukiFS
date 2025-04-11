@@ -9,7 +9,7 @@ insmod src/ko/yukifs.ko
 mkdir fs
 cat /proc/filesystems | grep yuki
 
-dd if=/dev/zero of=test.img bs=1KiB count=43
+dd if=/dev/zero of=test.img bs=1KiB count=42
 mkfs.yukifs -y test.img
 infofs.yukifs test.img
 infofs.yukifs -s test.img #> /dev/null 2>&1
@@ -31,6 +31,7 @@ ls -alci fs
 #file fs/version.txt
 
 df -kh fs
+rm -rvf fs/test.txt
 umount fs
 rm -rvf fs
 rmmod yukifs

@@ -427,7 +427,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
                 }
 
                 dentry->d_inode = inode;
-                d_add(dentry, dentry->d_inode);
+                //d_add(dentry, dentry->d_inode);
 
                 printk(KERN_INFO "YukiFS: File %s in directory %s at Inode Index (dentry) %d is poped successfully.\n", name, fo->name,i);
 
@@ -439,7 +439,13 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
         }
     }
 
-    return ERR_PTR(-ENOENT);
+    return NULL;
+}
+
+static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
+{
+    printk(KERN_INFO "YukiFS: unlink called %s %s\n", dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+    return 0;
 }
 
 struct inode_operations yukifs_dir_inode_operations = {
@@ -448,7 +454,12 @@ struct inode_operations yukifs_dir_inode_operations = {
     .mkdir = NULL,
     .rmdir = NULL,  
     .link = NULL,
-    .unlink = NULL, 
+    .unlink = yukifs_unlink, 
+    .getattr = yukifs_getattr,
+};
+
+struct inode_operations yukifs_file_inode_operations = {
+    .unlink = yukifs_unlink, 
     .getattr = yukifs_getattr,
 };
 
