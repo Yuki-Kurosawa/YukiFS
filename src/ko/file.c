@@ -481,7 +481,7 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
             inode->i_fop = &yukifs_dir_ops;
             // Initialize directory specific stuff if needed
         } else if (S_ISREG(inode->i_mode)) {
-            //inode->i_op = &yukifs_file_inode_operations; // You'll need to create this
+            inode->i_op = &yukifs_file_inode_operations; // You'll need to create this
             inode->i_fop = &yukifs_file_ops;
             // Initialize file specific stuff (e.g., first block)
         } else {
