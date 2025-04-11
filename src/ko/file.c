@@ -95,12 +95,6 @@ static ssize_t yukifs_read(struct file *filp, char __user *buf, size_t len, loff
     return len;
 }
 
-struct file_operations yukifs_file_ops = {
-    .owner = THIS_MODULE,
-    .open = yukifs_open,
-    .read = yukifs_read,
-};
-
 static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
 {
     struct inode *dir = file->f_inode;
@@ -182,14 +176,6 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     
     return 0;
 }
-
-struct file_operations yukifs_dir_ops = {
-    .owner = THIS_MODULE,    
-    .open = generic_file_open,
-    .release = NULL,
-    .llseek = generic_file_llseek, 
-    .iterate_shared = yukifs_iterate_shared,   
-};
 
 static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry *entry, ushort umode_t, bool excl)
 {
@@ -448,6 +434,10 @@ static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
     return 0;
 }
 
+#pragma endregion
+
+#pragma region File Operation Callback Structures
+
 struct inode_operations yukifs_dir_inode_operations = {
     .lookup = yukifs_lookup,
     .create = yukifs_create,
@@ -461,6 +451,20 @@ struct inode_operations yukifs_dir_inode_operations = {
 struct inode_operations yukifs_file_inode_operations = {
     .unlink = yukifs_unlink, 
     .getattr = yukifs_getattr,
+};
+
+struct file_operations yukifs_file_ops = {
+    .owner = THIS_MODULE,
+    .open = yukifs_open,
+    .read = yukifs_read,
+};
+
+struct file_operations yukifs_dir_ops = {
+    .owner = THIS_MODULE,    
+    .open = generic_file_open,
+    .release = NULL,
+    .llseek = generic_file_llseek, 
+    .iterate_shared = yukifs_iterate_shared,   
 };
 
 #pragma endregion
