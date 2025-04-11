@@ -406,6 +406,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
                 printk(KERN_INFO "YukiFS: Found file %s in directory %s at Inode Index (dentry) %d\n", name, fo->name,i);
                 
                 // pop the inode from the inode table object
+                printk(KERN_INFO "YukiFS: ffo->name %s ffo->size %d ffo->descriptor %o\n", ffo->name, ffo->size,ffo->descriptor);
                 struct inode *inode = yukifs_make_inode(parent->i_sb, ffo);
                 if (!inode) {
                     printk(KERN_ERR "YukiFS: inode allocation failed\n");
@@ -480,6 +481,7 @@ struct file_operations yukifs_dir_ops = {
 
 static struct inode *yukifs_make_inode(struct super_block *sb, struct file_object *fo)
 {
+    printk(KERN_INFO "YukiFS: make_inode ffo->name %s ffo->size %d ffo->descriptor %o\n", fo->name, fo->size,fo->descriptor);
     struct inode *inode = new_inode(sb);
     if (inode) {
         inode->i_mode = fo->descriptor;
