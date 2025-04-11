@@ -66,6 +66,7 @@ static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_
     }
     return 0;
 };
+
 #pragma endregion
 
 #pragma region File Operations
@@ -74,6 +75,7 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
 
 static int yukifs_open(struct inode *inode, struct file *filp)
 {
+    printk(KERN_INFO "YukiFS: open called %s %s\n", filp->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
     return 0;
 }
 
@@ -413,7 +415,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
                 }
 
                 dentry->d_inode = inode;
-                //d_add(dentry, dentry->d_inode);
+                d_add(dentry, dentry->d_inode);
 
                 printk(KERN_INFO "YukiFS: File %s in directory %s at Inode Index (dentry) %d is poped successfully.\n", name, fo->name,i);
 
@@ -431,6 +433,12 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
 static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
 {
     printk(KERN_INFO "YukiFS: unlink called %s %s\n", dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+    return 0;
+}
+
+static int yukifs_release(struct inode *inode, struct file *file)
+{
+    printk(KERN_INFO "YukiFS: release called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
     return 0;
 }
 
@@ -457,12 +465,13 @@ struct file_operations yukifs_file_ops = {
     .owner = THIS_MODULE,
     .open = yukifs_open,
     .read = yukifs_read,
+    .release = yukifs_release,
 };
 
 struct file_operations yukifs_dir_ops = {
     .owner = THIS_MODULE,    
     .open = generic_file_open,
-    .release = NULL,
+    .release = yukifs_release,
     .llseek = generic_file_llseek, 
     .iterate_shared = yukifs_iterate_shared,   
 };
