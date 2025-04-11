@@ -25,6 +25,7 @@ ls -alci fs
 touch fs/test.txt
 infofs.yukifs -s test.img
 echo 123 >> fs/test.txt
+echo 456 >> fs/test.txt
 echo "O TESTED"
 cat fs/test.txt
 echo "I TESTED"

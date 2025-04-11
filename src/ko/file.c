@@ -73,9 +73,18 @@ static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_
 
 static struct inode *yukifs_make_inode(struct super_block *sb, struct file_object *fo);
 
-static int yukifs_open(struct inode *inode, struct file *filp)
+static int yukifs_open(struct inode *inode, struct file *file)
 {
-    printk(KERN_INFO "YukiFS: open called %s %s\n", filp->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+    printk(KERN_INFO "YukiFS: open called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+
+    // Check for O_APPEND flag
+    if (file->f_flags & O_APPEND) {
+        file->f_pos = i_size_read(inode); // Set file position to the end
+        printk(KERN_INFO "YukiFS: open called with O_APPEND, setting offset to %lld\n", file->f_pos);
+    } else {
+        file->f_pos = 0; // Otherwise, start from the beginning
+    }
+
     return 0;
 }
 
