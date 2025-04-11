@@ -445,8 +445,68 @@ static int yukifs_release(struct inode *inode, struct file *file)
 
 static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t len, loff_t *offset)
 {
-    printk(KERN_INFO "YukiFS: write called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)file->f_inode->i_private)->name);
-    return 0;
+    struct inode *inode = file->f_inode;
+    struct file_object *fo = (struct file_object *)inode->i_private;
+    struct super_block *sb = inode->i_sb;
+    ssize_t written = 0;
+    uint32_t block_size = sb->s_blocksize;
+
+    printk(KERN_INFO "YukiFS: write called for inode %lu, offset %lld, len %zu\n",
+           inode->i_ino, *offset, len);
+
+    if (!fo) {
+        printk(KERN_ERR "YukiFS: write - file_object is NULL\n");
+        return -ENODEV;
+    }
+
+    if (*offset > inode->i_size) {
+        // Handle sparse writes or writes beyond the current end (for now, just extend)
+        // In a real filesystem, you might need to allocate and zero fill blocks
+        i_size_write(inode, *offset);
+    }
+
+    uint32_t start_block = fo->first_block;
+    
+
+    uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
+    loff_t file_offset = *offset;
+    uint32_t block_offset = file_offset % block_size;
+
+    // For simplicity, assuming single block for now
+    uint32_t physical_block_number = start_block;
+    uint32_t physical_offset = data_blocks_offset + physical_block_number * block_size + block_offset;
+    uint32_t physical_block_index = physical_offset / block_size;
+    uint32_t offset_in_physical_block = physical_offset % block_size;
+
+    size_t bytes_to_write = len;
+    if (offset_in_physical_block + bytes_to_write > block_size) {
+        bytes_to_write = block_size - offset_in_physical_block;
+        // Need to handle multi-block writes later
+    }
+
+    char *kbuf = kmalloc(bytes_to_write, GFP_KERNEL);
+    if (!kbuf)
+        return -ENOMEM;
+
+    if (copy_from_user(kbuf, buf, bytes_to_write)) {
+        kfree(kbuf);
+        return -EFAULT;
+    }
+
+    if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf + (physical_offset % block_size))) {
+        printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
+        kfree(kbuf);
+        return -EIO;
+    }
+
+    written = bytes_to_write;
+    *offset += written;
+    if (*offset > inode->i_size)
+        i_size_write(inode, *offset);
+    file->f_pos = *offset;
+
+    kfree(kbuf);
+    return written;
 }
 
 #pragma endregion

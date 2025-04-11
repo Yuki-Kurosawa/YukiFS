@@ -9,7 +9,7 @@ insmod src/ko/yukifs.ko
 mkdir fs
 cat /proc/filesystems | grep yuki
 
-dd if=/dev/zero of=test.img bs=1KiB count=44
+dd if=/dev/zero of=test.img bs=1KiB count=45
 mkfs.yukifs -y test.img
 infofs.yukifs test.img
 infofs.yukifs -s test.img #> /dev/null 2>&1
@@ -24,10 +24,10 @@ ls -alci . | grep fs
 ls -alci fs
 touch fs/test.txt
 infofs.yukifs -s test.img
-#echo 123 >> fs/test.txt
-echo "I TESTED"
+echo 123 >> fs/test.txt
+echo "O TESTED"
 cat fs/test.txt
-echo "IO TESTED"
+echo "I TESTED"
 ls -alci fs
 #cat fs/version.txt
 #cd fs/test_folder
