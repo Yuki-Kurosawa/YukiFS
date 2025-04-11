@@ -54,7 +54,7 @@ static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_
             memcpy(bh->b_data, buf+i * block_size, block_size);
 
             set_buffer_dirty(bh);
-            //sync_dirty_buffer(bh);
+            sync_dirty_buffer(bh);
             
             brelse(bh);
         }
