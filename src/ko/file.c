@@ -469,9 +469,8 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     }
 
     if (*offset > inode->i_size) {
-        // Handle sparse writes or writes beyond the current end (for now, just extend)
-        // In a real filesystem, you might need to allocate and zero fill blocks
-        i_size_write(inode, *offset);
+        printk(KERN_ERR "YukiFS: write - offset exceeds file size\n");
+        return -EINVAL;
     }
 
     uint32_t start_block = fo->first_block;
@@ -500,11 +499,24 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     if (copy_from_user(kbuf, buf, bytes_to_write)) {
         kfree(kbuf);
         return -EFAULT;
-    }
+    }    
 
     printk(KERN_INFO "YukiFS: kbuf %s", kbuf);
 
-    if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf)) {
+    char *block_buf = kmalloc(block_size, GFP_KERNEL);
+    if (!block_buf) {
+        kfree(kbuf);
+        return -ENOMEM;
+    }
+
+    // fill all bytes with zeros
+    memset(block_buf, 0, block_size);
+
+    // copy data from user buffer to kernel buffer
+    memcpy(block_buf, kbuf, bytes_to_write);
+
+    // write the block to the physical block
+    if (yukifs_blocks_write(sb, physical_block_index, 1, block_buf)) {
         printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
         kfree(kbuf);
         return -EIO;
@@ -512,8 +524,7 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
 
     written = bytes_to_write;
     *offset += written;
-    if (*offset > inode->i_size)
-        i_size_write(inode, *offset);
+    
     file->f_pos = *offset;
 
     kfree(kbuf);
