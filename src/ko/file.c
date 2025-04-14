@@ -527,6 +527,9 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     
     file->f_pos = *offset;
 
+    // prepare for new inode object
+    fo->size = *offset;
+
     kfree(kbuf);
     return written;
 }
