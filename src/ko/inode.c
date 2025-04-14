@@ -14,19 +14,6 @@
 #include "../../include/file_table.h"
 #include "file.h"
 
-static char* convert_arch_to_string(int arch)
-{
-    switch (arch) {
-        case ARCH_X86: return "x86/x86_32/i386/i486/i586/i686";
-        case ARCH_X86_64: return "x86_64/x64/amd64";
-        case ARCH_ARM: return "arm/armv7/armv7l";
-        case ARCH_AARCH64: return "aarch64/arm64/armv8";
-        case ARCH_RISCV: return "riscv";
-        default: return "Unknown";
-    }
-    return "Unknown";
-}
-
 static void yukifs_put_super(struct super_block *sb)
 {
     printk(KERN_INFO "YukiFS: put_super called\n");
@@ -108,11 +95,11 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     for (off_t i = 0; i < bytes_read - 1; ++i) {
         if (hidden_header_buffer[i] == 0x55 && hidden_header_buffer[i + 1] == 0xAA) {
-            printk(KERN_DEBUG "YukiFS: Found sequence 0x55AA at offset %ld\n", (long)i);
+            //printk(KERN_DEBUG "YukiFS: Found sequence 0x55AA at offset %ld\n", (long)i);
             hidden_data_start = i;
         }
         if (hidden_header_buffer[i] == 0xAA && hidden_header_buffer[i + 1] == 0x55) {
-            printk(KERN_DEBUG "YukiFS: Found sequence 0xAA55 at offset %ld\n", (long)i);
+            //printk(KERN_DEBUG "YukiFS: Found sequence 0xAA55 at offset %ld\n", (long)i);
             hidden_data_end = i;
         }
     }
@@ -125,37 +112,12 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     } else {
         printk(KERN_DEBUG "YukiFS: Hidden data markers found. Start at %lld, End at %lld.\n",
                hidden_data_start, hidden_data_end);
-        // Now you have the start and end offsets of your hidden data within the
-        // hidden_header_buffer. You can now proceed to extract and process
-        // the data located between these offsets (or starting at the start offset
-        // with a certain size, depending on your hidden data format).
-
-        // Add further code here to extract and use the hidden data.
     }
     #pragma endregion
 
     #pragma region go for hidden_data
 
-    struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(hidden_header_buffer + hidden_data_start);
-
-    printk(KERN_DEBUG "YukiFS: FS version: %d.%d.%d\n", hidden_data->fs_version[0], hidden_data->fs_version[1], hidden_data->fs_version[2]);
-    printk(KERN_DEBUG "YukiFS: FS build tool name: %s\n", hidden_data->fs_build_tool_name);
-    printk(KERN_DEBUG "YukiFS: FS build tool version: %d.%d.%d\n", hidden_data->fs_build_tool_version[0], hidden_data->fs_build_tool_version[1], hidden_data->fs_build_tool_version[2]);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF offset: %d\n", hidden_data->built_in_ELF_offset);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF size: %d\n", hidden_data->built_in_ELF_size);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF storage size: %d\n", hidden_data->built_in_ELF_storage_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data offset: %d\n", hidden_data->hidden_data_offset);
-    printk(KERN_DEBUG "YukiFS: Hidden data header size: %d\n", hidden_data->hidden_data_header_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data header storage size: %d\n", hidden_data->hidden_data_header_storage_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data size: %d\n", hidden_data->hidden_data_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data storage size: %d\n", hidden_data->hidden_data_storage_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module version: %s\n", hidden_data->built_in_kernel_module_version);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module offset: %d\n", hidden_data->built_in_kernel_module_offset);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module size: %d\n", hidden_data->built_in_kernel_module_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module storage size: %d\n", hidden_data->built_in_kernel_module_storage_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module architecture: %d (%s)\n", hidden_data->built_in_kernel_architechture,
-        convert_arch_to_string(hidden_data->built_in_kernel_architechture));
-    printk(KERN_DEBUG "YukiFS: Superblock Offset: %llu \n", hidden_data->superblock_offset);
+    struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(hidden_header_buffer + hidden_data_start);  
 
     #pragma endregion
 
@@ -186,26 +148,6 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     brelse(bh);
 
     printk(KERN_DEBUG "YukiFS: Read %lu bytes of superblock from device\n", bytes_read);
-
-    #pragma endregion
-
-    #pragma region read and pop the superblock
-
-    printk(KERN_DEBUG "YukiFS: Superblock magic: %s\n", sb_info->magic_number);
-    printk(KERN_DEBUG "YukiFS: Superblock block size: %d\n", sb_info->block_size);
-    printk(KERN_DEBUG "YukiFS: Superblock block count: %d\n", sb_info->block_count);
-    printk(KERN_DEBUG "YukiFS: Superblock free block count: %d\n", sb_info->block_free);
-    printk(KERN_DEBUG "YukiFS: Superblock inode count: %d\n", sb_info->total_inodes);
-    printk(KERN_DEBUG "YukiFS: Superblock free inode count: %d\n", sb_info->free_inodes);
-    printk(KERN_DEBUG "YukiFS: Superblock inode table size: %d\n", sb_info->inode_table_size);
-    printk(KERN_DEBUG "YukiFS: Superblock inode table clusters: %d\n", sb_info->inode_table_clusters);
-    printk(KERN_DEBUG "YukiFS: Superblock inode table storage size: %d\n", sb_info->inode_table_storage_size);
-    printk(KERN_DEBUG "YukiFS: Superblock inode table offset: %d\n", sb_info->inode_table_offset);
-    printk(KERN_DEBUG "YukiFS: Superblock data blocks offset: %d\n", sb_info->data_blocks_offset);
-    printk(KERN_DEBUG "YukiFS: Superblock data blocks total size: %d\n", sb_info->data_blocks_total_size);
-    printk(KERN_DEBUG "YukiFS: Superblock data blocks end offset: %d\n", sb_info->data_blocks_end_offset);
-    printk(KERN_DEBUG "YukiFS: Unallocated space size: %d\n", sb_info->unallocated_space_size);
-
 
     #pragma endregion
 

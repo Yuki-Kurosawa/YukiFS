@@ -77,13 +77,13 @@ static int yukifs_open(struct inode *inode, struct file *file)
 {
     printk(KERN_INFO "YukiFS: open called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
 
-    // Check for O_APPEND flag
-    // if (file->f_flags & O_APPEND) {
-    //     file->f_pos = i_size_read(inode); // Set file position to the end
-    //     printk(KERN_INFO "YukiFS: open called with O_APPEND, setting offset to %lld\n", file->f_pos);
-    // } else {
-    //     file->f_pos = 0; // Otherwise, start from the beginning
-    // }
+    //Check for O_APPEND flag
+    if (file->f_flags & O_APPEND) {
+        file->f_pos = i_size_read(inode); // Set file position to the end
+        printk(KERN_INFO "YukiFS: open called with O_APPEND, setting offset to %lld\n", file->f_pos);
+    } else {
+        file->f_pos = 0; // Otherwise, start from the beginning
+    }
 
     return 0;
 }
@@ -479,7 +479,6 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
 
     uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
     loff_t file_offset = *offset;
-    uint32_t block_offset = file_offset % block_size;
 
     // For simplicity, assuming single block for now
     uint32_t physical_block_number = start_block;
@@ -496,13 +495,14 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     char *kbuf = kmalloc(bytes_to_write, GFP_KERNEL);
     if (!kbuf)
         return -ENOMEM;
-
-    printk(KERN_INFO "YukiFS: %s\n", kbuf);
+   
 
     if (copy_from_user(kbuf, buf, bytes_to_write)) {
         kfree(kbuf);
         return -EFAULT;
     }
+
+    printk(KERN_INFO "YukiFS: kbuf %s\n", kbuf);
 
     if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf)) {
         printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
