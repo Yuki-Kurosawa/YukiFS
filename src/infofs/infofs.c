@@ -131,11 +131,11 @@ int extract_info(const char *device_path, bool no_info)
 
     for (off_t i = 0; i < bytes_read - 1; ++i) {
         if (buffer[i] == 0x55 && buffer[i + 1] == 0xAA) {
-            printf("Found sequence 0x55AA at offset %ld\n", i);
+            if(!no_info) printf("Found sequence 0x55AA at offset %ld\n", i);
             hidden_data_offset = i;
         }
         if (buffer[i] == 0xAA && buffer[i + 1] == 0x55) {
-            printf("Found sequence 0xAA55 at offset %ld\n", i);
+            if(!no_info) printf("Found sequence 0xAA55 at offset %ld\n", i);
             hidden_data_offset_end = i;
         }
     }

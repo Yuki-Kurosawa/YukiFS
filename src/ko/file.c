@@ -502,7 +502,7 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
         return -EFAULT;
     }
 
-    printk(KERN_INFO "YukiFS: kbuf %s\n", kbuf);
+    printk(KERN_INFO "YukiFS: kbuf %s", kbuf);
 
     if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf)) {
         printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
