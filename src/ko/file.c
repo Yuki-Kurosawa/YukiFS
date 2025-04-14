@@ -67,6 +67,8 @@ static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_
     return 0;
 };
 
+static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo);
+
 #pragma endregion
 
 #pragma region File Operations
@@ -477,7 +479,6 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     
 
     uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
-    loff_t file_offset = *offset;
 
     // For simplicity, assuming single block for now
     uint32_t physical_block_number = start_block;
@@ -530,8 +531,57 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     // prepare for new inode object
     fo->size = *offset;
 
+    yukifs_update_statfs(sb, fo);
+
+    kfree(block_buf);
+
     kfree(kbuf);
     return written;
+}
+
+static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo)
+{
+    struct superblock_info *sbi = (struct superblock_info *)sb->s_fs_info;
+    uint32_t inode_table_offset = sbi->inode_table_offset; 
+    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
+    uint32_t inode_table_clusters = sbi->inode_table_clusters;
+    uint32_t inode_block_nr=inode_table_offset/sbi->block_size;
+
+    char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
+    if (!inode_table) {
+        printk(KERN_ERR "YukiFS: Error allocating inode table\n");
+        return -ENOMEM;
+    }  
+
+    if(yukifs_blocks_read(sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    {
+        printk(KERN_ERR "YukiFS: Error reading inode table\n");
+        return -EIO;
+    }
+
+    uint32_t inode_index_list_size = sbi->total_inodes;
+
+    for (uint32_t i = 0; i < inode_index_list_size; i++) {
+        if (((struct file_object*)inode_table)[i].in_use == 1)
+        {
+            struct file_object *ffo = &(((struct file_object *)inode_table)[i]);
+            if (strncmp(fo->name, ffo->name, strlen(fo->name)) == 0 && strlen(fo->name) == strlen(ffo->name)) 
+            {     
+                // Update the inode object
+                ffo->size = fo->size;
+                break;
+            }
+        }
+    }
+
+    // wrrite inode table back to disk
+    if (yukifs_blocks_write(sb, inode_block_nr, inode_table_clusters, (char *)inode_table)) {
+        printk(KERN_ERR "YukiFS: Error writing inode table\n");
+        return -EIO;
+    }
+    kfree(inode_table);
+
+    return 0;
 }
 
 #pragma endregion
