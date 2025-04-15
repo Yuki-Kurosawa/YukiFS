@@ -92,17 +92,77 @@ static int yukifs_open(struct inode *inode, struct file *file)
 
 static ssize_t yukifs_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 {
-    const unsigned char *data = YUKIFS_VERSION_STRING "\n";
-    size_t datalen = strlen(data);
+    struct inode *inode = filp->f_inode;
+    struct file_object *fo = (struct file_object *)inode->i_private;
+    struct super_block *sb = inode->i_sb;
+    uint32_t block_size = sb->s_blocksize;
 
-    if (*offset >= datalen)
-        return 0;
+    printk(KERN_INFO "YukiFS: read called for inode %lu, offset %lld, len %zu\n",
+           inode->i_ino, *offset, len);
 
-    if (len > datalen - *offset)
-        len = datalen - *offset;
+    if (!fo) {
+        printk(KERN_ERR "YukiFS: read - file_object is NULL\n");
+        return -ENOENT;
+    }
 
-    if (copy_to_user(buf, data + *offset, len))
+    if (*offset > inode->i_size) {
+        printk(KERN_ERR "YukiFS: read - offset exceeds file size\n");
+        return -EINVAL;
+    }
+
+    uint32_t start_block = fo->first_block;
+
+    if(len > inode->i_size - *offset)
+    {
+        len = inode->i_size - *offset;
+    }
+    else
+    {
+        len = 0;
+    }
+
+    uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
+
+    // For simplicity, assuming single block for now
+    uint32_t physical_block_number = start_block;
+    uint32_t physical_offset = data_blocks_offset + physical_block_number * block_size;
+    uint32_t physical_block_index = physical_offset / block_size;
+    uint32_t offset_in_physical_block = physical_offset % block_size;
+
+    size_t bytes_to_read = len;
+    if (offset_in_physical_block + bytes_to_read > block_size) {
+        bytes_to_read = block_size - offset_in_physical_block;
+        // Need to handle multi-block writes later
+    }
+
+    char *kbuf = kmalloc(bytes_to_read, GFP_KERNEL);
+    if (!kbuf)
+        return -ENOMEM;
+
+    char *block_buf_old = kmalloc(block_size, GFP_KERNEL);
+    if (!block_buf_old) {
+        kfree(kbuf);
+        return -ENOMEM;
+    }
+    
+    // read the block from the physical block
+    if (yukifs_blocks_read(sb, physical_block_index, 1, block_buf_old)) {
+        printk(KERN_ERR "YukiFS: Error reading block %u\n", physical_block_index);
+        kfree(kbuf);
+        return -EIO;
+    }
+
+    // copy the data from the block to the kernel buffer
+    memcpy(kbuf, block_buf_old + *offset, bytes_to_read);
+    
+    printk(KERN_INFO "YukiFS: read - read %zu bytes from block %u\n", bytes_to_read, physical_block_index);
+    printk(KERN_INFO "YukiFS: read data : %s\n", kbuf);
+    kfree(block_buf_old);    
+
+    if (copy_to_user(buf, kbuf, len))
         return -EFAULT;
+
+    kfree(kbuf);
 
     *offset += len;
     return len;
@@ -469,7 +529,7 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
 
     if (!fo) {
         printk(KERN_ERR "YukiFS: write - file_object is NULL\n");
-        return -ENODEV;
+        return -ENOENT;
     }
 
     if (*offset > inode->i_size) {
