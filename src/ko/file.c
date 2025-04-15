@@ -335,10 +335,10 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     printk("  getattr(): Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", 
         fo->name,fo->size, fo->descriptor,fo->first_block,fo->inner_file);
 
-    stat->mode = fo->descriptor;
+    stat->mode = inode->i_mode;
     stat->ino = inode->i_ino;
-    stat->size = fo->size;
-    stat->blocks = (fo->size + inode->i_sb->s_blocksize - 1) / inode->i_sb->s_blocksize; // Calculate number of blocks
+    stat->size = inode->i_size;
+    stat->blocks = inode->i_blocks; // Calculate number of blocks
     stat->blksize = inode->i_sb->s_blocksize;
     stat->nlink = 1; // For simplicity, assume 1 hard link
     stat->uid = KUIDT_INIT(0);     // Root user for now
@@ -547,7 +547,8 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
 
     written = bytes_to_write;
     *offset += written;
-    
+
+    inode->i_size = *offset; // update in-memory inode     
     file->f_pos = *offset;
 
     // prepare for new inode object
