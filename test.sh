@@ -21,15 +21,7 @@ mount | grep yuki > /dev/null 2>&1
 
 file fs  > /dev/null 2>&1
 #ls -alci . | grep fs
-ls -alci fs 
-
-echo "----- before touch file -----"
-df -kh fs
-touch fs/test.txt
-touch fs/test2.txt
-echo "----- after touch file -----"
-df -kh fs 
-
+ls -alci fs
 umount fs 
 
 echo "----- Test Case 1 Begin -----"
