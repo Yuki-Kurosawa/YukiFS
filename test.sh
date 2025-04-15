@@ -30,6 +30,7 @@ mount -t yuki -o loop test.img fs
 touch fs/test.txt
 echo 123 > fs/test.txt
 cat fs/test.txt
+nano fs/test.txt
 echo "Expected: 31 32 33 0A 00 00 00 00 00 00 00 00"
 echo -n "Actual: "
 viewfs.yukifs --if=test.img --block-num=1 --count=12 --format=hex
