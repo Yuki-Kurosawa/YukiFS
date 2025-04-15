@@ -528,8 +528,12 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     // fill all bytes with zeros
     memset(block_buf, 0, block_size);
 
+    printk(KERN_INFO "YukiFS: write %s called flag %x\n", fo->name, file->f_flags);
     // copy old data to new buffer
-    memcpy(block_buf, block_buf_old, fo->size);
+    if(file->f_flags & O_APPEND) // copy old data to new buffer if appending
+    {
+        memcpy(block_buf, block_buf_old, fo->size);
+    }
 
     // copy data from user buffer to kernel buffer
     memcpy(block_buf + *offset, kbuf, bytes_to_write);
@@ -607,7 +611,7 @@ static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo)
     for (uint32_t i = 0; i < inode_index_list_size; i++) {
         if (((struct file_object*)inode_table)[i].in_use == 1)
         {
-            struct file_object *ffo = &(((struct file_object *)inode_table)[i]);
+            //struct file_object *ffo = &(((struct file_object *)inode_table)[i]);
             sbi->free_inodes -= 1;
             sbi->block_free -= 1; // assume each inode takes 1 block , later will be changed to real size
         }
