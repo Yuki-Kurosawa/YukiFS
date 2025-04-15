@@ -512,11 +512,27 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
         return -ENOMEM;
     }
 
+    char *block_buf_old = kmalloc(block_size, GFP_KERNEL);
+    if (!block_buf_old) {
+        kfree(kbuf);
+        return -ENOMEM;
+    }
+
+    // read the block from the physical block
+    if (yukifs_blocks_read(sb, physical_block_index, 1, block_buf_old)) {
+        printk(KERN_ERR "YukiFS: Error reading block %u\n", physical_block_index);
+        kfree(kbuf);
+        return -EIO;
+    }
+
     // fill all bytes with zeros
     memset(block_buf, 0, block_size);
 
+    // copy old data to new buffer
+    memcpy(block_buf, block_buf_old, fo->size);
+
     // copy data from user buffer to kernel buffer
-    memcpy(block_buf, kbuf, bytes_to_write);
+    memcpy(block_buf + *offset, kbuf, bytes_to_write);
 
     // write the block to the physical block
     if (yukifs_blocks_write(sb, physical_block_index, 1, block_buf)) {

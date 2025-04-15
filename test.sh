@@ -9,7 +9,7 @@ insmod src/ko/yukifs.ko > /dev/null 2>&1
 mkdir fs > /dev/null 2>&1
 cat /proc/filesystems | grep yuki > /dev/null 2>&1
 
-dd if=/dev/zero of=test.img bs=1KiB count=43 > /dev/null 2>&1
+dd if=/dev/zero of=test.img bs=1KiB count=44 > /dev/null 2>&1
 mkfs.yukifs -y test.img > /dev/null 2>&1
 
 infofs.yukifs test.img > /dev/null 2>&1
@@ -67,9 +67,9 @@ mkfs.yukifs -y test.img > /dev/null 2>&1
 mount test.img fs > /dev/null 2>&1
 touch fs/test.txt
 echo 456 >> fs/test.txt
-echo "Expected: 34 35 36 0A 00 00 00 00"
+echo "Expected: 34 35 36 0A 00 00 00 00 00 00 00 00"
 echo -n "Actual: "
-viewfs.yukifs --if=test.img --block-num=1 --count=8 --format=hex
+viewfs.yukifs --if=test.img --block-num=1 --count=12 --format=hex
 infofs.yukifs -s test.img
 ls -alci fs
 umount fs > /dev/null 2>&1
