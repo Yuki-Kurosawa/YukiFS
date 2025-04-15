@@ -506,7 +506,45 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
 
 static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
 {
-    printk(KERN_INFO "YukiFS: unlink called %s %s\n", dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+    struct file_object *fo = (struct file_object *)inode->i_private;
+    struct super_block *sb = inode->i_sb;
+    uint32_t block_size = sb->s_blocksize;
+
+    if (!fo) {
+        printk(KERN_ERR "YukiFS: write - file_object is NULL\n");
+        return -ENOENT;
+    }
+
+    printk(KERN_INFO "YukiFS: unlink called %s %s\n", dentry->d_name.name,fo->name);
+
+    uint32_t start_block = fo->first_block;   
+
+    uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
+
+    // For simplicity, assuming single block for now
+    uint32_t physical_block_number = start_block;
+    uint32_t physical_offset = data_blocks_offset + physical_block_number * block_size;
+    uint32_t physical_block_index = physical_offset / block_size;    
+
+    size_t bytes_to_write = block_size;
+
+    char *kbuf = kmalloc(bytes_to_write, GFP_KERNEL);
+    if (!kbuf)
+        return -ENOMEM;
+    
+    memset(kbuf, 0, bytes_to_write);
+
+    if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf)) {
+        printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
+        kfree(kbuf);
+        return -EIO;
+    }
+
+    inode->i_size = 0;
+    fo->size = 0;
+
+    yukifs_update_statfs(sb, fo);
+
     return 0;
 }
 
@@ -537,8 +575,7 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
         return -EINVAL;
     }
 
-    uint32_t start_block = fo->first_block;
-    
+    uint32_t start_block = fo->first_block;   
 
     uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
 
