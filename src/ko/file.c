@@ -676,7 +676,7 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
         inode->i_size = fo->size;
         inode->i_blocks = inode->i_size / sb->s_blocksize;
         inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
-        inode->i_ino = 9854+fo->first_block;
+        inode->i_ino = 9854 + fo->first_block;
         if (S_ISDIR(inode->i_mode)) {
             inode->i_op = &yukifs_dir_inode_operations;
             inode->i_fop = &yukifs_dir_ops;
