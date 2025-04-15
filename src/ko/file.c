@@ -315,6 +315,8 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
         kfree(data_block);
         return -EIO;
     }
+    
+    yukifs_update_statfs(dir->i_sb, new_fo); // update all the statfs info after inode table is updated
 
     printk(KERN_INFO "YukiFS: file %s created successfully\n", entry->d_name.name);
 
@@ -574,12 +576,34 @@ static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo)
         }
     }
 
-    // wrrite inode table back to disk
-    if (yukifs_blocks_write(sb, inode_block_nr, inode_table_clusters, (char *)inode_table)) {
+    // write inode table back to disk
+    if (yukifs_blocks_write(sb, inode_block_nr, inode_table_clusters, (char *)inode_table))
+    {
         printk(KERN_ERR "YukiFS: Error writing inode table\n");
         return -EIO;
     }
     kfree(inode_table);
+
+    // update superblock
+    sbi->block_free = sbi->block_count;
+    sbi->free_inodes = sbi->total_inodes;
+
+    for (uint32_t i = 0; i < inode_index_list_size; i++) {
+        if (((struct file_object*)inode_table)[i].in_use == 1)
+        {
+            struct file_object *ffo = &(((struct file_object *)inode_table)[i]);
+            sbi->free_inodes -= 1;
+            sbi->block_free -= 1; // assume each inode takes 1 block , later will be changed to real size
+        }
+    }
+
+    // write superblock back to disk
+    // superblock is always before the inode table
+    if(yukifs_blocks_write(sb, inode_block_nr - 1, 1, (char *)sbi))
+    {
+        printk(KERN_ERR "YukiFS: Error writing superblock\n");
+        return -EIO;
+    }   
 
     return 0;
 }
