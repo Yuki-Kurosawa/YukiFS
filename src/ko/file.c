@@ -77,7 +77,10 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
 
 static int yukifs_open(struct inode *inode, struct file *file)
 {
-    printk(KERN_INFO "YukiFS: open called %s %s\n", file->f_path.dentry->d_name.name,((struct file_object*)inode->i_private)->name);
+    struct file_object *fo = (struct file_object *)inode->i_private;
+    printk(KERN_INFO "YukiFS: open called %s %s\n", file->f_path.dentry->d_name.name,fo->name);
+
+    printk(KERN_INFO "YukiFS: open called %s size:%d\n", fo->name, fo->size);
 
     //Check for O_APPEND flag
     if (file->f_flags & O_APPEND) {
@@ -504,25 +507,33 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
     return NULL;
 }
 
-static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
+static int yukifs_unlink(struct inode *parent,struct dentry *dentry)
 {
-    struct file_object *fo = (struct file_object *)inode->i_private;
-    struct super_block *sb = inode->i_sb;
+    struct file_object *fo = (struct file_object *)parent->i_private;
+    struct super_block *sb = parent->i_sb;
     uint32_t block_size = sb->s_blocksize;
+    struct superblock_info *sbi = (struct superblock_info *)sb->s_fs_info;
 
     if (!fo) {
-        printk(KERN_ERR "YukiFS: write - file_object is NULL\n");
+        printk(KERN_ERR "YukiFS: unlink - file_object is NULL\n");
         return -ENOENT;
     }
 
     printk(KERN_INFO "YukiFS: unlink called %s %s\n", dentry->d_name.name,fo->name);
 
-    uint32_t start_block = fo->first_block;   
+    uint32_t dir_data_block_num = fo->first_block;   
 
-    uint32_t data_blocks_offset = ((struct superblock_info *)sb->s_fs_info)->data_blocks_offset;
+    printk(KERN_INFO "YukiFS: unlink dentry index logical start block %d of dir %s\n", dir_data_block_num, fo->name);
+
+    uint32_t data_blocks_offset = sbi->data_blocks_offset;    
+
+    struct file_object *ffo = (struct file_object *)dentry->d_inode->i_private;
+    uint32_t dentry_block_index = ffo->first_block;
+
+    printk(KERN_INFO "YukiFS: unlink logical data block %d\n", dentry_block_index);
 
     // For simplicity, assuming single block for now
-    uint32_t physical_block_number = start_block;
+    uint32_t physical_block_number = dentry_block_index;
     uint32_t physical_offset = data_blocks_offset + physical_block_number * block_size;
     uint32_t physical_block_index = physical_offset / block_size;    
 
@@ -535,15 +546,60 @@ static int yukifs_unlink(struct inode *inode,struct dentry *dentry)
     memset(kbuf, 0, bytes_to_write);
 
     if (yukifs_blocks_write(sb, physical_block_index, 1, kbuf)) {
-        printk(KERN_ERR "YukiFS: Error writing to block %u\n", physical_block_index);
+        printk(KERN_ERR "YukiFS: Error unlinking to physical block %u\n", physical_block_index);
         kfree(kbuf);
         return -EIO;
     }
+    else
+    {
+        printk(KERN_INFO "YukiFS: unlinking physical block %d successfully\n", physical_block_index);
+    }
 
-    inode->i_size = 0;
-    fo->size = 0;
+    // read the data blocks from the device data blocks
+    uint32_t data_block_size = sbi->block_size;
+    uint32_t data_block_count = fo->size / sbi->block_size;
+    uint32_t data_block_offset = data_blocks_offset + dir_data_block_num * data_block_size;
+    uint32_t data_block_nr = data_block_offset / data_block_size;
 
-    yukifs_update_statfs(sb, fo);
+    
+    char *data_block = kmalloc(fo->size, GFP_KERNEL);
+    if(yukifs_blocks_read(parent->i_sb, data_block_nr, data_block_count, data_block) < 0)
+    {
+        printk(KERN_ERR "YukiFS: unlink Error reading data block %d\n", data_block_nr);
+        kfree(data_block);
+        return -EIO;
+    }
+
+    // try to remove dentry from the directory
+    uint32_t *inode_index_list = (uint32_t *)data_block;
+    uint32_t inode_index_list_size = data_block_size / sizeof(uint32_t);
+    uint32_t dentry_index = UINT32_MAX;
+    for (uint32_t i = 0; i < inode_index_list_size; i++) {
+        if (inode_index_list[i] == dentry_block_index) {
+            dentry_index = i;
+            break;
+        }
+    }
+    if (dentry_index == UINT32_MAX) {
+        printk(KERN_ERR "YukiFS: unlink - dentry not found in directory\n");
+        kfree(data_block);
+        return -ENOENT;
+    }
+    inode_index_list[dentry_index] = 0;
+
+    // write the data blocks back to the device data blocks
+    if (yukifs_blocks_write(sb, data_block_nr, data_block_count, data_block)) {
+        printk(KERN_ERR "YukiFS: unlink Error writing data block %d\n", data_block_nr);
+        kfree(data_block);
+        return -EIO;
+    }
+    else
+    {
+        printk(KERN_INFO "YukiFS: unlinking dentry %s from dir %s successfully\n", dentry->d_name.name, fo->name);
+    }
+
+    ffo->size = 0;
+    yukifs_update_statfs(sb, ffo);
 
     return 0;
 }
@@ -688,8 +744,32 @@ static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo)
             if (strncmp(fo->name, ffo->name, strlen(fo->name)) == 0 && strlen(fo->name) == strlen(ffo->name)) 
             {     
                 // Update the inode object
-                ffo->size = fo->size;
-                break;
+
+                printk(KERN_INFO "YukiFS: updating inode %s \n", ffo->name);
+                printk(KERN_INFO "YukiFS: updating inode %s old size %d new size %d \n", ffo->name,ffo->size,fo->size);
+
+                if(ffo->size != 0 && fo->size != 0)
+                {
+                    // update metadata for file
+                    ffo->size = fo->size;
+                    printk(KERN_INFO "YukiFS: updating inode %s with size %d\n", ffo->name, fo->size);
+                }
+                else if(ffo->size != 0 && fo->size == 0)
+                {
+                    // erase metadata for file
+                    memset(ffo, 0, sizeof(struct file_object));
+                    printk(KERN_INFO "YukiFS: erasing inode %s\n", ffo->name);
+                }
+                else if(ffo->size == 0 && fo->size != 0)
+                {
+                    // init metadata for file
+                    ffo->size = fo->size;
+                    printk(KERN_INFO "YukiFS: initializing inode %s with size %d\n", ffo->name, fo->size);
+                }
+                else
+                {
+                    // do nothing if ffo->size == 0 && fo->size == 0
+                }
             }
         }
     }
