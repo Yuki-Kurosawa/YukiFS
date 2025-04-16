@@ -202,7 +202,7 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     }
 
     struct file_object *fo = dirobj;
-    printk(KERN_INFO "YukiFS: directory inode %d\n", fo->descriptor);
+    printk(KERN_INFO "YukiFS: directory i_mode %d\n", fo->descriptor);
 
     uint32_t data_blocks_offset = sbi->data_blocks_offset;
     uint32_t dir_data_block_num = fo->first_block;
