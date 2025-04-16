@@ -7,100 +7,31 @@
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
+#include <linux/log2.h>
 
 #include "../../include/internal.h"
 #include "../../include/version.h"
 #include "../../include/file_table.h"
-
-// define a tiny superblock info
-#define FS_BLOCK_SIZE 1 // dd bs value
-#define FS_BLOCK_COUNT 1 // dd count value
-#define FS_BLOCK_FREE 0
-#define FS_BLOCK_AVAILABLE 0
-#define FS_TOTAL_INODES 1
-#define FS_FREE_INODES 0
-// end define superblock info
-
-static char* convert_arch_to_string(int arch)
-{
-    switch (arch) {
-        case ARCH_X86: return "x86/x86_32/i386/i486/i586/i686";
-        case ARCH_X86_64: return "x86_64/x64/amd64";
-        case ARCH_ARM: return "arm/armv7/armv7l";
-        case ARCH_AARCH64: return "aarch64/arm64/armv8";
-        case ARCH_RISCV: return "riscv";
-        default: return "Unknown";
-    }
-    return "Unknown";
-}
-
-#pragma region  File Operations
-
-static int yukifs_open(struct inode *inode, struct file *filp)
-{
-    return 0;
-}
-
-static ssize_t yukifs_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
-{
-    const unsigned char *data = version;
-    size_t datalen = strlen(data);
-
-    if (*offset >= datalen)
-        return 0;
-
-    if (len > datalen - *offset)
-        len = datalen - *offset;
-
-    if (copy_to_user(buf, data + *offset, len))
-        return -EFAULT;
-
-    *offset += len;
-    return len;
-}
-
-static struct file_operations yukifs_file_ops = {
-    .owner = THIS_MODULE,
-    .open = yukifs_open,
-    .read = yukifs_read,
-};
-
-#pragma endregion
-
-static struct inode *yukifs_make_inode(struct super_block *sb, int mode, unsigned char* data)
-{
-    struct inode *inode = new_inode(sb);
-    if (inode) {
-        inode->i_mode = mode;
-        inode->i_uid.val = 0;
-        inode->i_gid.val = 0;
-        
-        if(!data)
-            inode->i_size = 0;
-        else
-            inode->i_size = strlen(data);
-        inode->i_blocks = inode->i_size / FS_BLOCK_SIZE;
-        inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
-        inode->i_ino = get_next_ino();
-        inode->i_fop = &yukifs_file_ops; // Add this line to set file operations
-    }
-    return inode;
-}
+#include "file.h"
 
 static void yukifs_put_super(struct super_block *sb)
 {
+    printk(KERN_INFO "YukiFS: put_super called\n");
     printk(KERN_DEBUG "YukiFS super block destroyed\n");
+    printk(KERN_INFO "YukiFS: put_super called done\n");
 }
 
 static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-    buf->f_type = FILESYSTEM_MAGIC_NUMBER;
-    buf->f_bsize = FS_BLOCK_SIZE;
-    buf->f_blocks = FS_BLOCK_COUNT; // Total blocks
-    buf->f_bfree = FS_BLOCK_FREE;   // Free blocks
-    buf->f_bavail = FS_BLOCK_AVAILABLE;  // Available blocks
-    buf->f_files = FS_TOTAL_INODES;   // Total inodes
-    buf->f_ffree = FS_FREE_INODES;    // Free inodes
+    struct superblock_info *sbi = (struct superblock_info*)dentry->d_sb->s_fs_info;
+
+    buf->f_type = dentry->d_sb->s_magic;
+    buf->f_bsize = dentry->d_sb->s_blocksize;
+    buf->f_blocks = sbi->block_count; // Total blocks
+    buf->f_bfree = sbi->block_free;   // Free blocks
+    buf->f_bavail = sbi->block_free;  // Available blocks
+    buf->f_files = sbi->total_inodes;   // Total inodes
+    buf->f_ffree = sbi->free_inodes;    // Free inodes
     buf->f_namelen = FS_MAX_LEN; // Maximum filename length
     return 0;
 }
@@ -112,9 +43,9 @@ static struct super_operations const yukifs_super_ops = {
 };
 
 static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
-{
-    struct inode *root;
-    struct dentry *root_dentry;
+{   
+
+    printk(KERN_INFO "YukiFS: fill_super called\n");
 
     #pragma region Read Headers from devices
 
@@ -154,8 +85,7 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
         brelse(bh);
     }
 
-    printk(KERN_DEBUG "YukiFS: Read %lu bytes of hidden header from device\n", bytes_read);
-  
+    printk(KERN_DEBUG "YukiFS: Read %lu bytes of hidden header from device\n", bytes_read);  
 
     #pragma endregion
 
@@ -165,11 +95,11 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     for (off_t i = 0; i < bytes_read - 1; ++i) {
         if (hidden_header_buffer[i] == 0x55 && hidden_header_buffer[i + 1] == 0xAA) {
-            printk(KERN_DEBUG "YukiFS: Found sequence 0x55AA at offset %ld\n", (long)i);
+            //printk(KERN_DEBUG "YukiFS: Found sequence 0x55AA at offset %ld\n", (long)i);
             hidden_data_start = i;
         }
         if (hidden_header_buffer[i] == 0xAA && hidden_header_buffer[i + 1] == 0x55) {
-            printk(KERN_DEBUG "YukiFS: Found sequence 0xAA55 at offset %ld\n", (long)i);
+            //printk(KERN_DEBUG "YukiFS: Found sequence 0xAA55 at offset %ld\n", (long)i);
             hidden_data_end = i;
         }
     }
@@ -182,44 +112,19 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     } else {
         printk(KERN_DEBUG "YukiFS: Hidden data markers found. Start at %lld, End at %lld.\n",
                hidden_data_start, hidden_data_end);
-        // Now you have the start and end offsets of your hidden data within the
-        // hidden_header_buffer. You can now proceed to extract and process
-        // the data located between these offsets (or starting at the start offset
-        // with a certain size, depending on your hidden data format).
-
-        // Add further code here to extract and use the hidden data.
     }
     #pragma endregion
 
     #pragma region go for hidden_data
 
-    struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(hidden_header_buffer + hidden_data_start);
-
-    printk(KERN_DEBUG "YukiFS: FS version: %d.%d.%d\n", hidden_data->fs_version[0], hidden_data->fs_version[1], hidden_data->fs_version[2]);
-    printk(KERN_DEBUG "YukiFS: FS build tool name: %s\n", hidden_data->fs_build_tool_name);
-    printk(KERN_DEBUG "YukiFS: FS build tool version: %d.%d.%d\n", hidden_data->fs_build_tool_version[0], hidden_data->fs_build_tool_version[1], hidden_data->fs_build_tool_version[2]);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF offset: %d\n", hidden_data->built_in_ELF_offset);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF size: %d\n", hidden_data->built_in_ELF_size);
-    printk(KERN_DEBUG "YukiFS: Built-in ELF storage size: %d\n", hidden_data->built_in_ELF_storage_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data offset: %d\n", hidden_data->hidden_data_offset);
-    printk(KERN_DEBUG "YukiFS: Hidden data header size: %d\n", hidden_data->hidden_data_header_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data header storage size: %d\n", hidden_data->hidden_data_header_storage_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data size: %d\n", hidden_data->hidden_data_size);
-    printk(KERN_DEBUG "YukiFS: Hidden data storage size: %d\n", hidden_data->hidden_data_storage_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module version: %s\n", hidden_data->built_in_kernel_module_version);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module offset: %d\n", hidden_data->built_in_kernel_module_offset);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module size: %d\n", hidden_data->built_in_kernel_module_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module storage size: %d\n", hidden_data->built_in_kernel_module_storage_size);
-    printk(KERN_DEBUG "YukiFS: Built-in kernel module architecture: %d (%s)\n", hidden_data->built_in_kernel_architechture,
-        convert_arch_to_string(hidden_data->built_in_kernel_architechture));
-    printk(KERN_DEBUG "YukiFS: Superblock Offset: %llu \n", hidden_data->superblock_offset);
+    struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(hidden_header_buffer + hidden_data_start);  
 
     #pragma endregion
 
     #pragma region Initialize the superblock
 
     uint64_t superblock_offset = hidden_data->superblock_offset;
-    kfree(hidden_header_buffer);
+   
     // done for hidden data
 
     // go ahead for superblock reading from devices
@@ -246,89 +151,30 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     #pragma endregion
 
-    #pragma region read and pop the superblock
+    #pragma region pop to superblock VFS
 
-    printk(KERN_DEBUG "YukiFS: Superblock magic: %s\n", sb_info->magic_number);
-    printk(KERN_DEBUG "YukiFS: Superblock block size: %d\n", sb_info->block_size);
-    printk(KERN_DEBUG "YukiFS: Superblock block count: %d\n", sb_info->block_count);
-    printk(KERN_DEBUG "YukiFS: Superblock free block count: %d\n", sb_info->block_free);
-    printk(KERN_DEBUG "YukiFS: Superblock inode count: %d\n", sb_info->total_inodes);
-    printk(KERN_DEBUG "YukiFS: Superblock free inode count: %d\n", sb_info->free_inodes);
+    sb->s_blocksize = sb_info->block_size;
+    sb->s_blocksize_bits=ilog2(sb_info->block_size);
+    sb->s_fs_info = sb_info;
+    sb->s_maxbytes = MAX_LFS_FILESIZE;
+    sb_set_blocksize(sb, sb_info->block_size);
+
+    #pragma endregion
+
+    #pragma region Free all the temp viariables
+
+    kfree(hidden_header_buffer);
 
     #pragma endregion
 
     sb->s_magic = FILESYSTEM_MAGIC_NUMBER;
     sb->s_op = &yukifs_super_ops;
 
-    #pragma region Initialize the root inode
-
-    root = yukifs_make_inode(sb, S_IFDIR | 0755, NULL);
-    if (!root) {
-        printk(KERN_ERR "YukiFS: inode allocation failed\n");
-        return -ENOMEM;
-    }
-    root->i_op = &simple_dir_inode_operations;
-    root->i_fop = &simple_dir_operations;
-
-    root_dentry = d_make_root(root);
-    if (!root_dentry) {
-        iput(root);
-        printk(KERN_ERR "YukiFS: root creation failed\n");
-        return -ENOMEM;
-    }
-    sb->s_root = root_dentry;
-
-    #pragma endregion
-
-    #pragma region Initialize the root directory
-
-    //Add a folder to the root directory
-    struct dentry *folder_dentry = d_alloc_name(root_dentry, "test_folder");
-    if (!folder_dentry) {
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: folder creation failed\n");
-        return -ENOMEM;
-    }
-    folder_dentry->d_inode = yukifs_make_inode(sb, S_IFDIR | 0755 , NULL);
+    int ret = yukifs_init_root(sb);
     
-    if (!folder_dentry->d_inode) {
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: folder inode allocation failed\n");
-        return -ENOMEM;
-    }
-    folder_dentry->d_inode->i_op = &simple_dir_inode_operations;
-    folder_dentry->d_inode->i_fop = &simple_dir_operations;
-    d_add(folder_dentry, folder_dentry->d_inode);
+    printk(KERN_INFO "YukiFS: fill_super called done\n");
 
-    //Add a file to the root directory
-    struct dentry *file_dentry = d_alloc_name(root_dentry, "version.txt");
-    if (!file_dentry) {
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: file creation failed\n");
-        return -ENOMEM;
-    }
-    file_dentry->d_inode = yukifs_make_inode(sb, S_IFREG | 0644, version);
-    if (!file_dentry->d_inode) {
-        dput(file_dentry);
-        dput(folder_dentry);
-        dput(root_dentry);
-        iput(root);
-        printk(KERN_ERR "YukiFS: file inode allocation failed\n");
-        return -ENOMEM;
-    }
-    file_dentry->d_inode->i_op = &simple_dir_inode_operations;
-    file_dentry->d_inode->i_fop = &yukifs_file_ops;
-    d_add(file_dentry, file_dentry->d_inode);
-
-
-    #pragma endregion
-
-    return 0;
+    return 0 | ret;
 }
 
 static struct dentry *yukifs_mount(struct file_system_type *fs_type,
@@ -343,7 +189,7 @@ static struct file_system_type yukifs_type = {
     .owner = THIS_MODULE,
     .name = FILESYSTEM_DISPLAYNAME,
     .mount = yukifs_mount,
-    .kill_sb = kill_litter_super,
+    .kill_sb = kill_block_super,
     .fs_flags = FS_REQUIRES_DEV,
 };
 
