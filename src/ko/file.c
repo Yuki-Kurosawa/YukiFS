@@ -756,9 +756,9 @@ static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo)
                 }
                 else if(ffo->size != 0 && fo->size == 0)
                 {
-                    // erase metadata for file
-                    memset(ffo, 0, sizeof(struct file_object));
+                    // erase metadata for file                    
                     printk(KERN_INFO "YukiFS: erasing inode %s\n", ffo->name);
+                    memset(ffo, 0, sizeof(struct file_object));
                 }
                 else if(ffo->size == 0 && fo->size != 0)
                 {
