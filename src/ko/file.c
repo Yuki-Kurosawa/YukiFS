@@ -2,78 +2,9 @@
 
 #include "file.h"
 
-#pragma region Block IO Operations
-
-// function to convert offset to block count
-// this function is not used in the current implementation
-/*
-static uint32_t yukifs_offset2block(struct super_block *sb, uint32_t offset)
-{
-    struct superblock_info *sbi = sb->s_fs_info;
-    uint32_t block_size = sbi->block_size;
-    uint32_t block_nr = offset / block_size;
-    return block_nr;
-};
-*/
-
-static int yukifs_blocks_read(struct super_block *sb, uint32_t block_nr,uint32_t block_count, char *buf)
-{
-    struct superblock_info *sbi = sb->s_fs_info;
-    uint32_t block_size = sbi->block_size;
-    
-    // no block count check due to module didn't know the real size of the file
-
-    for (uint32_t i = 0; i < block_count; i++) 
-    {
-        struct buffer_head *bh;
-        bh = sb_bread(sb, block_nr + i);
-        if (!bh) {
-            printk(KERN_ERR "YukiFS: Error reading block %d\n", block_nr);
-            return -EIO;
-        }
-        memcpy(buf+i * block_size, bh->b_data, block_size);
-        brelse(bh);
-    }
-    return 0;
-};
-
-static int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_t block_count, char *buf)
-{
-    struct superblock_info *sbi = sb->s_fs_info;
-    uint32_t block_size = sbi->block_size;
-
-    // no block count check due to module didn't know the real size of the file
-    
-    if (block_count > 0)
-    {
-        for (uint32_t i = 0; i < block_count; i++)  {
-            struct buffer_head *bh;
-            bh = sb_getblk(sb, block_nr + i);
-            if (!bh) {
-                printk(KERN_ERR "YukiFS: Error getting block %d\n", block_nr);
-                return -EIO;
-            }   
-            memcpy(bh->b_data, buf+i * block_size, block_size);
-
-            set_buffer_dirty(bh);
-            sync_dirty_buffer(bh);
-            
-            brelse(bh);
-        }
-    }
-    else
-    {
-        printk(KERN_ERR "YukiFS: Error writing block %d, block count is 0\n", block_nr);
-        return -EIO;
-    }
-    return 0;
-};
+#pragma region File Operations
 
 static int yukifs_update_statfs(struct super_block *sb, struct file_object *fo);
-
-#pragma endregion
-
-#pragma region File Operations
 
 static struct inode *yukifs_make_inode(struct super_block *sb, struct file_object *fo);
 

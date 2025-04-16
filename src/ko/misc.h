@@ -15,4 +15,8 @@
 #include "../../include/version.h"
 #include "../../include/file_table.h"
 
+//extern uint32_t yukifs_offset2block(struct super_block *sb, uint32_t offset);
+extern int yukifs_blocks_read(struct super_block *sb, uint32_t block_nr,uint32_t block_count, char *buf);
+extern int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_t block_count, char *buf);
+
 #endif

@@ -53,7 +53,8 @@
         "limits.h": "c",
         "stdbool.h": "c",
         "bits.h": "c",
-        "time64.h": "c"
+        "time64.h": "c",
+        "misc.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
