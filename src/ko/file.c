@@ -140,6 +140,7 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     if(data_block_read < 0)
     {
         kfree(data_block);
+        kfree(inode_table);
         return data_block_read;
     }
 
@@ -386,6 +387,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
     {
         printk(KERN_ERR "YukiFS: Error reading data block %d\n", data_block_nr);
         kfree(data_block);
+        kfree(inode_table);
         return ERR_PTR(-EIO);
     }
 
