@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "file.h"
 
 #pragma region Block IO Operations
