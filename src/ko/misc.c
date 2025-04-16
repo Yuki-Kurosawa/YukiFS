@@ -69,5 +69,22 @@ int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_t block
     return 0;
 };
 
-
 #pragma endregion
+
+int yukifs_inode_table_read(struct super_block *sb, char* inode_table)
+{
+    struct superblock_info *sbi = sb->s_fs_info;
+
+    uint32_t inode_table_offset = sbi->inode_table_offset; 
+    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
+    uint32_t inode_table_clusters = sbi->inode_table_clusters;
+    uint32_t inode_block_nr=inode_table_offset / sbi->block_size;
+    
+    if(yukifs_blocks_read(sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    {
+        printk(KERN_ERR "YukiFS: Error reading inode table\n");
+        return -EIO;
+    }
+
+    return 0;
+}

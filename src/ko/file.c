@@ -117,21 +117,18 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
         return 0;
     }
 
-    uint32_t inode_table_offset = sbi->inode_table_offset; 
-    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
-    uint32_t inode_table_clusters = sbi->inode_table_clusters;
-    uint32_t inode_block_nr=inode_table_offset/sbi->block_size;
-
-    char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
+    char* inode_table = kmalloc(sbi->inode_table_size, GFP_KERNEL);
+    
     if (!inode_table) {
         printk(KERN_ERR "YukiFS: Error allocating inode table\n");
         return -ENOMEM;
     }    
+    
+    int inode_table_read = yukifs_inode_table_read(dir->i_sb, inode_table);
 
-    if(yukifs_blocks_read(dir->i_sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    if(inode_table_read < 0)
     {
-        printk(KERN_ERR "YukiFS: Error reading inode table\n");
-        return -EIO;
+        return inode_table_read;
     }
 
     struct file_object *fo = dirobj;
