@@ -394,7 +394,7 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     struct inode *inode = path->dentry->d_inode;
     struct file_object *fo = (struct file_object *)inode->i_private;
 
-    printk(KERN_INFO "YukiFS: getattr dentry: %s inode: %s\n", path->dentry->d_name.name,fo->name);
+    printk(KERN_INFO "YukiFS: getattr dentry: %s inode: %s with inode_num %d\n", path->dentry->d_name.name,fo->name,inode->i_ino);
     printk("  getattr(): Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", 
         fo->name,fo->size, fo->descriptor,fo->first_block,fo->inner_file);
 
