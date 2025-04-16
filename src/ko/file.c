@@ -125,38 +125,29 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     }    
     
     int inode_table_read = yukifs_inode_table_read(dir->i_sb, inode_table);
-
     if(inode_table_read < 0)
     {
+        kfree(inode_table);
         return inode_table_read;
     }
 
     struct file_object *fo = dirobj;
     printk(KERN_INFO "YukiFS: directory i_mode %d\n", fo->descriptor);
-
-    uint32_t data_blocks_offset = sbi->data_blocks_offset;
-    uint32_t dir_data_block_num = fo->first_block;
-
-    // read the data blocks from the device data blocks
-    uint32_t data_block_size = sbi->block_size;
-    uint32_t data_block_count = fo->size / sbi->block_size;
-    uint32_t data_block_offset = data_blocks_offset + dir_data_block_num * data_block_size;
-    uint32_t data_block_nr = data_block_offset / data_block_size;
-
+  
     
     char *data_block = kmalloc(fo->size, GFP_KERNEL);
-    if(yukifs_blocks_read(dir->i_sb, data_block_nr, data_block_count, data_block) < 0)
+    int data_block_read = yukifs_data_blocks_read(dir->i_sb,fo,data_block);
+    if(data_block_read < 0)
     {
-        printk(KERN_ERR "YukiFS: Error reading data block %d\n", data_block_nr);
         kfree(data_block);
-        return -EIO;
+        return data_block_read;
     }
 
     printk(KERN_INFO "YukiFS: directory data block %d\n", data_block[0]);
     
     // treat data block as inode index list type uint32_t*
     uint32_t *inode_index_list = (uint32_t *)data_block;
-    uint32_t inode_index_list_size = data_block_size / sizeof(uint32_t);
+    uint32_t inode_index_list_size = sbi->block_size / sizeof(uint32_t);
     
     for (uint32_t i = ctx->pos / sizeof(uint32_t); i < inode_index_list_size; i++) {
         if (inode_index_list[i] != 0) 

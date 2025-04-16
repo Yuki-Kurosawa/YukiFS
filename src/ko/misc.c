@@ -76,13 +76,37 @@ int yukifs_inode_table_read(struct super_block *sb, char* inode_table)
     struct superblock_info *sbi = sb->s_fs_info;
 
     uint32_t inode_table_offset = sbi->inode_table_offset; 
-    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
+    //uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
     uint32_t inode_table_clusters = sbi->inode_table_clusters;
     uint32_t inode_block_nr=inode_table_offset / sbi->block_size;
     
     if(yukifs_blocks_read(sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
     {
         printk(KERN_ERR "YukiFS: Error reading inode table\n");
+        return -EIO;
+    }
+
+    return 0;
+}
+
+int yukifs_data_blocks_read(struct super_block *sb, struct file_object *fo, char *data_block)
+{
+    struct superblock_info *sbi = sb->s_fs_info;
+
+    uint32_t data_blocks_offset = sbi->data_blocks_offset;
+    uint32_t dir_data_block_num = fo->first_block;
+
+    // read the data blocks from the device data blocks
+    uint32_t data_block_size = sbi->block_size;
+    uint32_t data_block_count = fo->size / sbi->block_size;
+    uint32_t data_block_offset = data_blocks_offset + dir_data_block_num * data_block_size;
+    uint32_t data_block_nr = data_block_offset / data_block_size;
+
+    
+    if(yukifs_blocks_read(sb, data_block_nr, data_block_count, data_block) < 0)
+    {
+        printk(KERN_ERR "YukiFS: Error reading data block %d\n", data_block_nr);
+        kfree(data_block);
         return -EIO;
     }
 
