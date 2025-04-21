@@ -163,6 +163,8 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
             if(!dir_emit(ctx, ffo->name, strlen(ffo->name), inode_index_list[i] , DT_REG))
             {
                  ctx->pos = i * sizeof(uint32_t);
+                 kfree(data_block);
+                 kfree(inode_table);
                  return 0;
             }
         }
@@ -188,27 +190,17 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
         return -EPERM;
     }
 
-    // physical inode 0 always represents the root directory
-    // read whole inode table from the device 
-    uint32_t inode_table_offset = sbi->inode_table_offset; 
-    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
-    uint32_t inode_table_clusters = sbi->inode_table_clusters;
-    uint32_t inode_block_nr=inode_table_offset/sbi->block_size;
-
-    char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
+    char *inode_table = kmalloc(sbi->inode_table_size, GFP_KERNEL);
     if (!inode_table) {
         printk(KERN_ERR "YukiFS: Error allocating inode table\n");
         return -ENOMEM;
     }
 
-    printk(KERN_INFO "YukiFS: inode table offset %d\n", inode_table_offset);
-    printk(KERN_INFO "YukiFS: inode table block %d\n", inode_block_nr);
-    printk(KERN_INFO "YukiFS: inode table clusters %d\n", inode_table_clusters);    
-
-    if(yukifs_blocks_read(dir->i_sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    int inode_table_read = yukifs_inode_table_read(dir->i_sb, inode_table);
+    if(inode_table_read < 0)
     {
-        printk(KERN_ERR "YukiFS: Error reading inode table\n");
-        return -EIO;
+        kfree(inode_table);
+        return inode_table_read;
     }
     
     struct file_object *fo = dirobj;
@@ -294,7 +286,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
         return -EIO;
     }
 
-    if(yukifs_blocks_write(dir->i_sb, inode_block_nr, inode_table_clusters, inode_table) < 0)
+    if(yukifs_inode_table_write(dir->i_sb, inode_table) < 0)
     {
         printk(KERN_ERR "YukiFS: Error writing inode table\n");
         kfree(data_block);
@@ -350,26 +342,17 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
 
     printk(KERN_INFO "YukiFS: lookup called for '%s' in directory inode %lu\n", name, parent->i_ino);
 
-    // read whole inode table from the device 
-    uint32_t inode_table_offset = sbi->inode_table_offset; 
-    uint32_t inode_table_size = sbi->inode_table_storage_size; // use storage size due to whole blocks read
-    uint32_t inode_table_clusters = sbi->inode_table_clusters;
-    uint32_t inode_block_nr=inode_table_offset/sbi->block_size;
-
-    char *inode_table = kmalloc(inode_table_size, GFP_KERNEL);
+    char *inode_table = kmalloc(sbi->inode_table_size, GFP_KERNEL);
     if (!inode_table) {
         printk(KERN_ERR "YukiFS: Error allocating inode table\n");
         return ERR_PTR(-ENOMEM);
     }
 
-    printk(KERN_INFO "YukiFS: inode table offset %d\n", inode_table_offset);
-    printk(KERN_INFO "YukiFS: inode table block %d\n", inode_block_nr);
-    printk(KERN_INFO "YukiFS: inode table clusters %d\n", inode_table_clusters);    
-
-    if(yukifs_blocks_read(parent->i_sb, inode_block_nr, inode_table_clusters, (char *)inode_table) < 0)
+    int inode_table_read = yukifs_inode_table_read(parent->i_sb, inode_table);
+    if(inode_table_read < 0)
     {
-        printk(KERN_ERR "YukiFS: Error reading inode table\n");
-        return ERR_PTR(-EIO);
+        kfree(inode_table);
+        return ERR_PTR(inode_table_read);
     }
 
     uint32_t data_blocks_offset = sbi->data_blocks_offset;

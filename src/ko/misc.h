@@ -20,6 +20,7 @@ extern int yukifs_blocks_read(struct super_block *sb, uint32_t block_nr,uint32_t
 extern int yukifs_blocks_write(struct super_block *sb, uint32_t block_nr,uint32_t block_count, char *buf);
 
 extern int yukifs_inode_table_read(struct super_block *sb, char* inode_table);
+extern int yukifs_inode_table_write(struct super_block *sb, char* inode_table);
 
 extern int yukifs_data_blocks_read(struct super_block *sb, struct file_object *fo, char *data_block);
 
