@@ -5,7 +5,7 @@ KERNEL_DIR = /usr/src/linux-headers-$(KVERSION)/
 MODULE_NAME = yukifs
 
 $(MODULE_NAME)-objs := misc.o file.o inode.o
-obj-y := $(MODULE_NAME).o
+obj-$(CONFIG_YUKI_FS) := $(MODULE_NAME).o
 
 all:
 	@make -C $(KERNEL_DIR) M=$(PWD) modules
