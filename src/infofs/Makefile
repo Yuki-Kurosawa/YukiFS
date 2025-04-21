@@ -11,6 +11,7 @@ all: infofs.yukifs viewfs.yukifs
 
 clean:
 	@rm -f infofs.yukifs
+	@rm -f viewfs.yukifs
 
 install:
 	@cp infofs.yukifs /usr/bin/infofs.yukifs
