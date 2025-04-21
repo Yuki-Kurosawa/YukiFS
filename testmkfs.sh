@@ -3,6 +3,7 @@ clear
 
 unset LANG
 unset LANGUAGE
+export CONFIG_YUKI_FS=m
 dd if=/dev/zero of=test.img bs=1KiB count=100
 make > /dev/null 2>&1
 make install > /dev/null 2>&1

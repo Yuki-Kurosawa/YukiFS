@@ -1,6 +1,7 @@
 #! /bin/bash
 unset LANG
 unset LANGUAGE
+export CONFIG_YUKI_FS=m
 
 clear
 make all install > /dev/null 2>&1
