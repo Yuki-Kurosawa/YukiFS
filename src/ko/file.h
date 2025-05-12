@@ -11,6 +11,8 @@
 #include <linux/buffer_head.h>
 #include <linux/log2.h>
 #include <linux/time64.h>
+#include <linux/version.h>
+#include <linux/kernel.h>
 
 #include "../../include/internal.h"
 #include "../../include/version.h"

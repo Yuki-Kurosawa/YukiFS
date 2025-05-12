@@ -759,7 +759,13 @@ static struct inode *yukifs_make_inode(struct super_block *sb, struct file_objec
         inode->i_gid.val = 0;
         inode->i_size = fo->size;
         inode->i_blocks = inode->i_size / sb->s_blocksize;
-        inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0)
+            inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
+        #else
+            struct timespec64 ts=current_time(inode);
+            inode->i_atime_sec = inode->i_mtime_sec = inode->i_ctime_sec = ts.tv_sec;
+            inode->i_atime_nsec = inode->i_mtime_nsec = inode->i_ctime_nsec = ts.tv_nsec;
+        #endif
         inode->i_ino = 9854 + fo->first_block;
         if (S_ISDIR(inode->i_mode)) {
             inode->i_op = &yukifs_dir_inode_operations;
