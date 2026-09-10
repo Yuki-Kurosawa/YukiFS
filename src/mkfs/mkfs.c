@@ -13,6 +13,7 @@
 #include <sys/types.h> // For getuid()
 #include <unistd.h>    // For getuid()
 #include <sys/stat.h> 
+#include <time.h> // For time()
 
 #include "../../include/version.h"
 #include "../../include/file_table.h"
@@ -388,17 +389,40 @@ int main(int argc, char *argv[]) {
     memcpy(superblock.magic_number, filesystem_magic_bytes, sizeof(filesystem_magic_bytes));
     superblock.block_size = block_size;
 
-    // Calculate total_inodes (x) and block_count (x) using the provided formulas
+    // Calculate total_inodes (x) and block_count by fixed-point iteration:
+    // layout after header: inode table (FILE_OBJECT_ALIGN_SIZE bytes/inode)
+    // + block bitmap (1 bit per data block) + data blocks (block_size each).
+    // total_inodes == block_count. Any change to the on-disk inode layout
+    // must be reflected in file_table.h; this loop and the whole tool set
+    // (mkfs/infofs/viewfs) follow FILE_OBJECT_ALIGN_SIZE automatically.
     uint32_t x = 0;
-    uint32_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE; // Get the aligned size
+    uint32_t file_object_align_size = FILE_OBJECT_ALIGN_SIZE;
     if (device_size > initial_header_size) {
-        uint32_t remaining_space = device_size - initial_header_size;
-        uint32_t block_count = remaining_space / block_size; //block_count means blocks for inode_tables and datas
-
-        // solve x for block_count=file_object_align_size*x /block_size + x
-        x = (block_count * block_size) / (file_object_align_size + block_size);
-
-    }    
+        for (int iter = 0; iter < 8; iter++) {
+            uint32_t it_storage = ((file_object_align_size * x + block_size - 1) / block_size) * block_size;
+            uint32_t bm_storage = ((((x + 7) / 8) + block_size - 1) / block_size) * block_size;
+            uint32_t remaining_space = device_size - initial_header_size - it_storage - bm_storage;
+            uint32_t bc = remaining_space / block_size;
+            if (bc == x) break;
+            x = bc;
+        }
+        // verify the layout fits, decrease until it does (guards against oscillation)
+        while (x > 1) {
+            uint32_t it_storage = ((file_object_align_size * x + block_size - 1) / block_size) * block_size;
+            uint32_t bm_storage = ((((x + 7) / 8) + block_size - 1) / block_size) * block_size;
+            uint64_t required = (uint64_t)initial_header_size + it_storage + bm_storage + (uint64_t)x * block_size;
+            if (required <= device_size) break;
+            x--;
+        }
+    }
+    if (x < 2) {
+        fprintf(stderr, "Error: Device or image file '%s' is too small for a yukifs filesystem.\n", effective_device_path);
+        free(fs_padding_data);
+        free(fs_header_data);
+        if (!try_run && fd != -1) close(fd);
+        if (try_run && mem_device != NULL) free(mem_device);
+        return 1;
+    }
 
     superblock.total_inodes = x;
     superblock.block_count = x;
@@ -425,7 +449,9 @@ int main(int argc, char *argv[]) {
     // Generate the file system header
     size_t actual_header_size = gen_fs_header(fs_header_data, fs_padding_data, fs_padding_size, hidden_data_buffer, hidden_data_size, &superblock, block_size);
     superblock.inode_table_offset = actual_header_size;
-    superblock.data_blocks_offset = actual_header_size + superblock.inode_table_storage_size;
+    superblock.bitmap_offset = actual_header_size + superblock.inode_table_storage_size;
+    superblock.bitmap_blocks = ((((x + 7) / 8) + block_size - 1) / block_size);
+    superblock.data_blocks_offset = superblock.bitmap_offset + superblock.bitmap_blocks * block_size;
     superblock.data_blocks_total_size = superblock.block_count * block_size;
     superblock.data_blocks_end_offset = superblock.data_blocks_offset + superblock.data_blocks_total_size;
     superblock.unallocated_space_size = device_size - superblock.data_blocks_end_offset;
@@ -520,8 +546,9 @@ int main(int argc, char *argv[]) {
         printf("Finished writing zeros to the simulated device.\n");
     }
 
-    // Calculate the size of the inode table
-    size_t inode_table_size = file_object_align_size * x;
+    // Allocate and Initialize Inode Table (whole-block storage size so the
+    // block bitmap written right after it lands on its exact offset)
+    size_t inode_table_size = superblock.inode_table_storage_size;
 
     // Allocate and Initialize Inode Table
     struct file_object *inode_table = (struct file_object *)malloc(inode_table_size);
@@ -545,9 +572,29 @@ int main(int argc, char *argv[]) {
     root_dir.descriptor = S_IFDIR | 0777;
     root_dir.first_block = 0;
     root_dir.in_use = 1;
+    root_dir.uid = 0;
+    root_dir.gid = 0;
+    time_t now = time(NULL);
+    root_dir.atime_sec = (uint64_t)now;
+    root_dir.mtime_sec = (uint64_t)now;
+    root_dir.ctime_sec = (uint64_t)now;
     inode_table[0] = root_dir;
 
 
+
+    // Build the block bitmap: one bit per data block, bit 0 (root directory
+    // data block) is always allocated.
+    size_t bitmap_bytes = ((x + 7) / 8 + block_size - 1) / block_size * block_size;
+    unsigned char *block_bitmap = (unsigned char *)calloc(1, bitmap_bytes);
+    if (block_bitmap == NULL) {
+        perror("Error allocating memory for block bitmap");
+        free(fs_padding_data);
+        free(fs_header_data);
+        if (!try_run && fd != -1) close(fd);
+        if (try_run && mem_device != NULL) free(mem_device);
+        return 1;
+    }
+    block_bitmap[0] = 0x01; // mark block 0 (root directory) as used
 
     if (!try_run) {
         lseek(fd, 0, SEEK_SET); //back to byte 0;
@@ -576,6 +623,7 @@ int main(int argc, char *argv[]) {
   
         if (bytes_written_inode_table == -1) {
             perror("Error writing inode table to device/image");
+            free(block_bitmap);
             close(fd);
             return 1;
         }
@@ -583,6 +631,15 @@ int main(int argc, char *argv[]) {
         if ((size_t)bytes_written_inode_table < inode_table_size) {
             fprintf(stderr, "Warning: Only %zd bytes of inode table written, expected %zu.\n", bytes_written_inode_table, inode_table_size);
         }
+
+        printf("Writing block bitmap to the device/image...\n");
+        if (write(fd, block_bitmap, bitmap_bytes) == -1) {
+            perror("Error writing block bitmap to device/image");
+            free(block_bitmap);
+            close(fd);
+            return 1;
+        }
+        free(block_bitmap);
 
         printf("yukifs filesystem created successfully on %s with block size %d, total inodes/blocks: %u\n", effective_device_path, block_size, x);
 
@@ -595,6 +652,10 @@ int main(int argc, char *argv[]) {
 
         // Simulate writing inode table to memory
         memcpy(mem_device + actual_header_size, inode_table, inode_table_size);        
+
+        // Simulate writing block bitmap to memory
+        memcpy(mem_device + actual_header_size + inode_table_size, block_bitmap, bitmap_bytes);
+        free(block_bitmap);
 
         free(inode_table);
         free(fs_padding_data);

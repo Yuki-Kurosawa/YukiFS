@@ -21,6 +21,15 @@ static void yukifs_put_super(struct super_block *sb)
     printk(KERN_INFO "YukiFS: put_super called done\n");
 }
 
+/* inode->i_private always owns a kmalloc'd copy of the on-disk file_object
+   (kmemdup in create()/lookup(), kmalloc in init_root()); release it when the
+   inode is evicted, otherwise every iget_locked() inode leaks its 64B copy and
+   stale inodes linger in the global hash across mount/unmount cycles. */
+static void yukifs_destroy_inode(struct inode *inode)
+{
+    kfree(inode->i_private);
+}
+
 static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
     struct superblock_info *sbi = (struct superblock_info*)dentry->d_sb->s_fs_info;
@@ -32,7 +41,7 @@ static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
     buf->f_bavail = sbi->block_free;  // Available blocks
     buf->f_files = sbi->total_inodes;   // Total inodes
     buf->f_ffree = sbi->free_inodes;    // Free inodes
-    buf->f_namelen = FS_MAX_LEN; // Maximum filename length
+    buf->f_namelen = FS_MAX_LEN - 1; // Maximum filename length
     return 0;
 }
 
@@ -40,6 +49,7 @@ static struct super_operations const yukifs_super_ops = {
     .put_super = yukifs_put_super,
     .statfs = yukifs_statfs,
     .drop_inode = generic_delete_inode,
+    .destroy_inode = yukifs_destroy_inode,
 };
 
 static int yukifs_fill_super(struct super_block *sb, void *data, int silent)

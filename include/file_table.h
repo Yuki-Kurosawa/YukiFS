@@ -8,7 +8,7 @@
 #define FILESYSTEM_MAGIC_NUMBER 0x59554B49 // FILESYSTEM MAGIC "YUKI"
 #define FILESYSTEM_MAGIC_BYTES {0x59,0x55,0x4B,0x49,0x00,0x00,0x00,0x00} // FILESYSTEM MAGIC "YUKI" FOR SUPERBLOCK INFO STRUCT
 #define FILE_DEFAULT_PERMISSION 0755
-#define FILE_OBJECT_ALIGN_SIZE 32
+#define FILE_OBJECT_ALIGN_SIZE 64
 #define SUPER_BLOCK_ALIGN_SIZE 512
 #define MINIMAL_BLOCK_SIZE 1024
 #define MAXIMUM_BLOCK_SIZE 8192
@@ -43,6 +43,8 @@ struct superblock_info {
     uint32_t data_blocks_offset;
     uint32_t data_blocks_total_size;
     uint32_t data_blocks_end_offset;
+    uint32_t bitmap_offset;   // byte offset of the block bitmap (one bit per data block)
+    uint32_t bitmap_blocks;   // number of whole blocks used by the block bitmap
     uint32_t unallocated_space_size;
 };
 
@@ -54,6 +56,11 @@ struct file_object
     int inner_file;// determine the file is a builtin file.
     int descriptor; // the drwxrwxrwx thing, permissions & descriptors
     unsigned int first_block;
+    uint32_t uid;         // owner uid (root = 0)
+    uint32_t gid;         // owner gid (root = 0)
+    uint64_t atime_sec;   // access time, seconds since epoch (nsec not stored)
+    uint64_t mtime_sec;   // modify time
+    uint64_t ctime_sec;   // change time
 };
 
 
