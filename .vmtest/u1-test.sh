@@ -59,9 +59,9 @@ for K in "${SIZES[@]}"; do
   echo -n "content: "; cat fs/ow.txt; echo
   [ "$(cat fs/ow.txt)" = "aXYdefgh" ] && echo TC8-OK || echo TC8-FAIL
 
-  echo "--- TC9: 12-char name rejected (ENAMETOOLONG), 11-char ok ---"
-  echo 1 > fs/abcdefghijkl 2>/dev/null && echo TC9A-FAIL-name12-accepted || echo TC9A-OK-name12-rejected
-  echo 1 > fs/abcdefghijk 2>/dev/null && echo TC9B-OK-name11-works || echo TC9B-FAIL-name11
+  echo "--- TC9: 64-char name rejected (ENAMETOOLONG), 63-char ok ---"
+  echo 1 > fs/abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl 2>/dev/null && echo TC9A-FAIL-name64-accepted || echo TC9A-OK-name64-rejected
+  echo 1 > fs/abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk 2>/dev/null && echo TC9B-OK-name63-works || echo TC9B-FAIL-name63
 
   echo "--- TC10: unlink frees blocks (real statfs) ---"
   a0=$(avail)
@@ -120,12 +120,12 @@ for K in "${SIZES[@]}"; do
   mv fs/2.txt fs/3.txt && echo TC14D-OK-replace || echo TC14D-FAIL
   [ "$(cat fs/3.txt)" = "hello" ] && echo TC14E-OK-replaced-content || echo TC14E-FAIL
   ls fs | grep -q '^2.txt$' && echo TC14F-FAIL || echo TC14F-OK
-  # 12-char target rejected (via syscall so we test the kernel, not coreutils mv)
+  # 64-char target rejected (via syscall so we test the kernel, not coreutils mv)
   python3 -c "import os
 try:
-    os.rename('fs/3.txt','fs/abcdefghijkl'); print('TC14G-FAIL-name12')
+    os.rename('fs/3.txt','fs/abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl'); print('TC14G-FAIL-name64')
 except OSError as e:
-    print('TC14G-OK-name12-rejected' if e.errno==36 else 'TC14G-WRONG-ERRNO-%d'%e.errno)"
+    print('TC14G-OK-name64-rejected' if e.errno==36 else 'TC14G-WRONG-ERRNO-%d'%e.errno)"
   # mv to same name: no-op (rename(2) on identical path)
   python3 -c "import os
 os.rename('fs/3.txt','fs/3.txt'); print('TC14H-OK-same')"
