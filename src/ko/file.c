@@ -2,6 +2,83 @@
 
 #include "file.h"
 #include <linux/string.h>
+#include <linux/uidgid.h>
+#include <linux/cred.h>
+
+/* Inode timestamps differ between kernel generations:
+ *   6.12+  : struct inode carries i_atime_sec/i_mtime_sec/i_ctime_sec (u64)
+ *            plus i_*_nsec (u32); the old timespec64 members are gone.
+ *   <=6.11 : i_atime/i_mtime are struct timespec64 and ctime lives in the
+ *            internal __i_ctime timespec64.
+ * YukiFS persists whole-second timestamps, so both sides are plain
+ * sec/nsec(0) mappings.  Every inode-timestamp access goes through these
+ * helpers; the 6.12 branch is byte-for-byte what was validated on u1
+ * (6.12.107+deb13), the legacy branch targets 6.6 (compile-verified). */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
+#define yuki_ts_set(inode, a, m, c) \
+    do { \
+        (inode)->i_atime_sec = (uint64_t)(a); \
+        (inode)->i_mtime_sec = (uint64_t)(m); \
+        (inode)->i_ctime_sec = (uint64_t)(c); \
+        (inode)->i_atime_nsec = (inode)->i_mtime_nsec = (inode)->i_ctime_nsec = 0; \
+    } while (0)
+#define yuki_ts_get(inode, a, m, c) \
+    do { \
+        (a) = (inode)->i_atime_sec; \
+        (m) = (inode)->i_mtime_sec; \
+        (c) = (inode)->i_ctime_sec; \
+    } while (0)
+#define yuki_ts_set_ctime(inode, c) \
+    ((inode)->i_ctime_sec = (uint64_t)(c))
+#define yuki_ts_set_mtime_ctime(inode, m, c) \
+    do { \
+        (inode)->i_mtime_sec = (uint64_t)(m); \
+        (inode)->i_ctime_sec = (uint64_t)(c); \
+    } while (0)
+#define yuki_ts_set_ctime_now(inode) \
+    ((inode)->i_ctime_sec = current_time(inode).tv_sec)
+#define yuki_ts_stat(inode, stat) \
+    do { \
+        (stat)->atime = inode_get_atime(inode); \
+        (stat)->mtime = inode_get_mtime(inode); \
+        (stat)->ctime = inode_get_ctime(inode); \
+    } while (0)
+#else
+#define yuki_ts_set(inode, a, m, c) \
+    do { \
+        (inode)->i_atime = (struct timespec64){ .tv_sec = (a), .tv_nsec = 0 }; \
+        (inode)->i_mtime = (struct timespec64){ .tv_sec = (m), .tv_nsec = 0 }; \
+        (inode)->__i_ctime.tv_sec = (c); \
+        (inode)->__i_ctime.tv_nsec = 0; \
+    } while (0)
+#define yuki_ts_get(inode, a, m, c) \
+    do { \
+        (a) = (inode)->i_atime.tv_sec; \
+        (m) = (inode)->i_mtime.tv_sec; \
+        (c) = (inode)->__i_ctime.tv_sec; \
+    } while (0)
+#define yuki_ts_set_ctime(inode, c) \
+    do { \
+        (inode)->__i_ctime.tv_sec = (c); \
+        (inode)->__i_ctime.tv_nsec = 0; \
+    } while (0)
+#define yuki_ts_set_mtime_ctime(inode, m, c) \
+    do { \
+        (inode)->i_mtime = (struct timespec64){ .tv_sec = (m), .tv_nsec = 0 }; \
+        (inode)->__i_ctime.tv_sec = (c); \
+        (inode)->__i_ctime.tv_nsec = 0; \
+    } while (0)
+#define yuki_ts_set_ctime_now(inode) \
+    do { \
+        (inode)->__i_ctime = current_time(inode); \
+    } while (0)
+#define yuki_ts_stat(inode, stat) \
+    do { \
+        (stat)->atime = (inode)->i_atime; \
+        (stat)->mtime = (inode)->i_mtime; \
+        (stat)->ctime = inode_get_ctime(inode); \
+    } while (0)
+#endif
 
 #pragma region File Operations
 
@@ -58,14 +135,7 @@ static void yukifs_fill_inode(struct super_block *sb, struct inode *inode,
     inode->i_gid.val = fo->gid;
     inode->i_size = fo->size;
     inode->i_blocks = fo->size ? ((fo->size + sb->s_blocksize - 1) / sb->s_blocksize) : 1;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0)
-        inode->__i_atime = inode->__i_mtime = inode->__i_ctime = current_time(inode);
-    #else
-        inode->i_atime_sec = fo->atime_sec;
-        inode->i_mtime_sec = fo->mtime_sec;
-        inode->i_ctime_sec = fo->ctime_sec;
-        inode->i_atime_nsec = inode->i_mtime_nsec = inode->i_ctime_nsec = 0;
-    #endif
+    yuki_ts_set(inode, fo->atime_sec, fo->mtime_sec, fo->ctime_sec);
     inode->i_ino = 9854 + inode_index;
     if (S_ISDIR(inode->i_mode)) {
         inode->i_op = &yukifs_dir_inode_operations;
@@ -414,6 +484,10 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     new_fo[ii].size = 0;
     new_fo[ii].inner_file = 0;
     new_fo[ii].descriptor = umode_t;
+    /* owner = creating process; .val is equivalent to from_kuid(&init_user_ns,
+       current_fsuid()) and avoids the GPL-only init_user_ns export (6.18+) */
+    new_fo[ii].uid = current_fsuid().val;
+    new_fo[ii].gid = current_fsgid().val;
     new_fo[ii].first_block = new_block;
     strscpy(new_fo[ii].name, entry->d_name.name, FS_MAX_LEN);
     struct timespec64 create_ts = current_time(dir);
@@ -481,7 +555,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
 
 /* --- directories --- */
 
-static int yukifs_mkdir(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
+static int yukifs_mkdir_int(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
 {
     (void)mnt;
     printk(KERN_INFO "YukiFS: mkdir called %s %s %d\n", entry->d_name.name,
@@ -617,6 +691,9 @@ static int yukifs_mkdir(struct mnt_idmap *mnt, struct inode *dir, struct dentry 
     new_fo[ii].size = block_size; /* one slot-array block; grows later if needed */
     new_fo[ii].inner_file = 0;
     new_fo[ii].descriptor = S_IFDIR | (mode & 0777);
+    /* owner = creating process; .val avoids the GPL-only init_user_ns export */
+    new_fo[ii].uid = current_fsuid().val;
+    new_fo[ii].gid = current_fsgid().val;
     new_fo[ii].first_block = new_block;
     strscpy(new_fo[ii].name, entry->d_name.name, FS_MAX_LEN);
     struct timespec64 create_ts = current_time(dir);
@@ -671,6 +748,22 @@ static int yukifs_mkdir(struct mnt_idmap *mnt, struct inode *dir, struct dentry 
 
     return 0;
 }
+
+/* 6.18 changed ->mkdir to return struct dentry * (VFS "mkdir returns dentry"
+   series); wrap the int implementation without touching the 6.12/6.6 path.
+   The 6.18 contract (see vfs_mkdir): on success return NULL when the dentry
+   is already connected (or an existing alias; d_splice_alias() also requires
+   an unhashed dentry, which is not the case here because yukifs_mkdir_int()
+   already d_add()ed it), on error return ERR_PTR(). */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+static struct dentry *yukifs_mkdir(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
+{
+    int rc = yukifs_mkdir_int(mnt, dir, entry, mode);
+    if (rc)
+        return ERR_PTR(rc);
+    return NULL;
+}
+#endif
 
 static int yukifs_rmdir(struct inode *dir, struct dentry *entry)
 {
@@ -994,7 +1087,7 @@ static int yukifs_link(struct dentry *old_dentry, struct inode *dir,
 
     /* VFS bookkeeping: the new dentry aliases the SAME inode object, so both
        names share the cached metadata (size/run/uid/gid/times) */
-    inode->i_ctime_sec = current_time(inode).tv_sec;
+    yuki_ts_set_ctime_now(inode);
     inc_nlink(inode);
     ihold(inode);
     new_dentry->d_fsdata = (void *)(uintptr_t)rec_idx;
@@ -1074,10 +1167,7 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     stat->uid = KUIDT_INIT(fo->uid);
     stat->gid = KGIDT_INIT(fo->gid);
 
-    stat->atime = inode_get_atime(inode);
-    stat->mtime = inode_get_mtime(inode);
-    stat->ctime = inode_get_ctime(inode);
-
+    yuki_ts_stat(inode, stat);
     return 0;
 };
 
@@ -1486,7 +1576,7 @@ static int yukifs_rename(struct mnt_idmap *mnt, struct inode *old_dir, struct de
             memset(old_fo->name, 0, FS_MAX_LEN);
             strscpy(old_fo->name, new_dentry->d_name.name, FS_MAX_LEN);
             old_fo->ctime_sec = current_time(old_inode).tv_sec;
-            old_inode->i_ctime_sec = old_fo->ctime_sec;
+            yuki_ts_set_ctime(old_inode, old_fo->ctime_sec);
         }
 
         printk(KERN_INFO "YukiFS: renamed %s -> %s successfully\n", old_dentry->d_name.name, new_dentry->d_name.name);
@@ -1581,7 +1671,7 @@ static int yukifs_rename(struct mnt_idmap *mnt, struct inode *old_dir, struct de
         memset(old_fo->name, 0, FS_MAX_LEN);
         strscpy(old_fo->name, new_dentry->d_name.name, FS_MAX_LEN);
         old_fo->ctime_sec = current_time(old_inode).tv_sec;
-        old_inode->i_ctime_sec = old_fo->ctime_sec;
+        yuki_ts_set_ctime(old_inode, old_fo->ctime_sec);
     }
 
     printk(KERN_INFO "YukiFS: renamed %s -> %s (cross-directory) successfully\n",
@@ -1799,8 +1889,7 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     struct timespec64 write_ts = current_time(inode);
     fo->mtime_sec = write_ts.tv_sec;
     fo->ctime_sec = write_ts.tv_sec;
-    inode->i_mtime_sec = fo->mtime_sec;
-    inode->i_ctime_sec = fo->ctime_sec;
+    yuki_ts_set_mtime_ctime(inode, fo->mtime_sec, fo->ctime_sec);
 
     file->f_pos = end;
     *offset = end;
@@ -1970,9 +2059,7 @@ static int yukifs_setattr(struct mnt_idmap *mnt, struct dentry *dentry,
         fo->descriptor = inode->i_mode;
         fo->uid = inode->i_uid.val;
         fo->gid = inode->i_gid.val;
-        fo->atime_sec = inode->i_atime_sec;
-        fo->mtime_sec = inode->i_mtime_sec;
-        fo->ctime_sec = inode->i_ctime_sec;
+        yuki_ts_get(inode, fo->atime_sec, fo->mtime_sec, fo->ctime_sec);
         yukifs_update_statfs(sb, inode_idx, fo, false);
     }
 
@@ -1986,7 +2073,11 @@ static int yukifs_setattr(struct mnt_idmap *mnt, struct dentry *dentry,
 struct inode_operations yukifs_dir_inode_operations = {
     .lookup = yukifs_lookup,
     .create = yukifs_create,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
     .mkdir = yukifs_mkdir,
+#else
+    .mkdir = yukifs_mkdir_int,
+#endif
     .rmdir = yukifs_rmdir,  
     .link = yukifs_link,
     .unlink = yukifs_unlink, 

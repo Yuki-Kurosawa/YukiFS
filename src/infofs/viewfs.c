@@ -114,7 +114,7 @@ int parse_args(int argc, char *argv[], struct viewfs_args *args) {
                 args->help = 1;
                 break;
             case 'v':
-                printf("viewfs version 0.1\n");
+                printf("viewfs version %s\n", INFOFS_VERSION_STRING);
                 return 0; 
             case '?':
                 // getopt_long already printed an error message

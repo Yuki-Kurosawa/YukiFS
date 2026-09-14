@@ -13,6 +13,7 @@
 #include "../../include/version.h"
 #include "../../include/file_table.h"
 #include "file.h"
+#include <linux/fs_context.h>
 
 static void yukifs_put_super(struct super_block *sb)
 {
@@ -48,7 +49,11 @@ static int yukifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static struct super_operations const yukifs_super_ops = {
     .put_super = yukifs_put_super,
     .statfs = yukifs_statfs,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,18,0)
+    /* 6.18 removed generic_delete_inode; leaving drop_inode NULL gives the
+       same default delete semantics without referencing the old helper. */
     .drop_inode = generic_delete_inode,
+#endif
     .destroy_inode = yukifs_destroy_inode,
 };
 
@@ -187,18 +192,47 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
     return 0 | ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+/* 6.18 removed mount_bdev(); block-device filesystems now mount through the
+   fs_context API: init_fs_context + get_tree_bdev. yukifs_fill_super() never
+   uses data/silent, so a small adapter is enough. */
+static int yukifs_fill_super_fc(struct super_block *sb, struct fs_context *fc)
+{
+    (void)fc;
+    return yukifs_fill_super(sb, NULL, 0);
+}
+
+static int yukifs_get_tree(struct fs_context *fc)
+{
+    return get_tree_bdev(fc, yukifs_fill_super_fc);
+}
+
+static int yukifs_init_fs_context(struct fs_context *fc)
+{
+    static const struct fs_context_operations yukifs_fs_context_ops = {
+        .get_tree = yukifs_get_tree,
+    };
+    fc->ops = &yukifs_fs_context_ops;
+    return 0;
+}
+#else
 static struct dentry *yukifs_mount(struct file_system_type *fs_type,
     int flags, const char *dev_name, void *data)
 {
     return mount_bdev(fs_type, flags, dev_name, data, yukifs_fill_super);
 }
+#endif
 
 #pragma region  Module Initialization
 
 static struct file_system_type yukifs_type = {
     .owner = THIS_MODULE,
     .name = FILESYSTEM_DISPLAYNAME,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+    .init_fs_context = yukifs_init_fs_context,
+#else
     .mount = yukifs_mount,
+#endif
     .kill_sb = kill_block_super,
     .fs_flags = FS_REQUIRES_DEV,
 };
