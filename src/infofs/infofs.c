@@ -176,8 +176,6 @@ int extract_info(const char *device_path, bool no_info)
         printf("  End Magic Number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
     }
 
-    uint64_t superblock_offset = hidden_data->superblock_offset;
-
     free(buffer);
 
     // seek to superblock offset
@@ -220,6 +218,8 @@ int extract_info(const char *device_path, bool no_info)
         printf("  Inode Table Storage Size: %u\n", superblock->inode_table_storage_size);
         printf("  Inode Table Clusters: %u\n", superblock->inode_table_clusters);    
         printf("  Inode Table Offset: %u\n", superblock->inode_table_offset);
+        printf("  Block Bitmap Offset: %u\n", superblock->bitmap_offset);
+        printf("  Block Bitmap Blocks: %u\n", superblock->bitmap_blocks);
         printf("  Data Blocks Offset: %u\n", superblock->data_blocks_offset);
         printf("  Data Blocks Total Size: %u\n", superblock->data_blocks_total_size);
         printf("  Data Blocks End Offset: %u\n", superblock->data_blocks_end_offset);
@@ -246,18 +246,17 @@ int extract_info(const char *device_path, bool no_info)
         printf("  Inode Item Size: %lu\n", sizeof(struct file_object));
         printf("  Inode Item Storage Size: %u\n", FILE_OBJECT_ALIGN_SIZE);
         printf("  Inode Table Size: %ld\n", inode_table_size);
-        printf("  Inode Table Storage Size: %u\n", superblock->block_size * inode_table_clusters);
-        printf("  Inode Table Clusters: %u\n", inode_table_clusters);
-        printf("  Inode Table Offset: %lu\n", superblock_offset + superblock->block_size);    
-        uint64_t data_blocks_offset = superblock_offset + superblock->block_size + superblock->block_size * inode_table_clusters;
-        printf("  Data Blocks Offset: %lu\n",data_blocks_offset);
-        printf("  Data Blocks Total Size: %u\n", superblock->block_count * superblock->block_size);
-        printf("  Data Blocks End Offset: %lu\n", data_blocks_offset + superblock->block_free * superblock->block_size);
-        printf("  Unallocated Space Size: %lu\n", file_size - data_blocks_offset - superblock->block_count * superblock->block_size);
+        printf("  Inode Table Storage Size: %u\n", superblock->inode_table_storage_size);
+        printf("  Inode Table Clusters: %u\n", superblock->inode_table_clusters);
+        printf("  Inode Table Offset: %u\n", superblock->inode_table_offset);
+        printf("  Data Blocks Offset: %u\n", superblock->data_blocks_offset);
+        printf("  Data Blocks Total Size: %u\n", superblock->data_blocks_total_size);
+        printf("  Data Blocks End Offset: %u\n", superblock->data_blocks_end_offset);
+        printf("  Unallocated Space Size: %u\n", superblock->unallocated_space_size);
     }
   
     // seek to inode table offset
-    if (lseek(fd, superblock_offset + superblock->block_size, SEEK_SET) == -1) {
+    if (lseek(fd, superblock->inode_table_offset, SEEK_SET) == -1) {
         fprintf(stderr, "Error: Cannot seek to the beginning of '%s': %s\n", device_path, strerror(errno));
         free(buffer);
         close(fd);

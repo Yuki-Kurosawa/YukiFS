@@ -249,8 +249,6 @@ int do_stuff(struct viewfs_args *args) {
     // read hidden data from offset
     struct hidden_data_struct *hidden_data = (struct hidden_data_struct *)(buffer + hidden_data_offset);
 
-    uint64_t superblock_offset = hidden_data->superblock_offset;
-
     free(buffer);
 
     // seek to superblock offset
@@ -284,7 +282,7 @@ int do_stuff(struct viewfs_args *args) {
     }
   
     // seek to inode table offset
-    if (lseek(fd, superblock_offset + superblock->block_size, SEEK_SET) == -1) {
+    if (lseek(fd, superblock->inode_table_offset, SEEK_SET) == -1) {
         fprintf(stderr, "Error: Cannot seek to the beginning of '%s': %s\n", device_path, strerror(errno));
         free(buffer);
         close(fd);
