@@ -164,6 +164,18 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 
     printk(KERN_DEBUG "YukiFS: Read %lu bytes of superblock from device\n", bytes_read);
 
+    /* Reject unsupported block sizes up front instead of failing deep in the
+       VFS buffer layer: sb_bread() cannot handle blocks larger than PAGE_SIZE
+       (4096), and anything below the minimum would corrupt the layout math. */
+    if (sb_info->block_size < MINIMAL_BLOCK_SIZE ||
+        sb_info->block_size > MAXIMUM_BLOCK_SIZE) {
+        printk(KERN_ERR "YukiFS: unsupported block size %u (supported %u..%u)\n",
+               sb_info->block_size, MINIMAL_BLOCK_SIZE, MAXIMUM_BLOCK_SIZE);
+        kfree(sb_info);
+        kfree(hidden_header_buffer);
+        return -EINVAL;
+    }
+
     #pragma endregion
 
     #pragma region pop to superblock VFS

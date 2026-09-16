@@ -11,7 +11,10 @@
 #define FILE_OBJECT_ALIGN_SIZE 128
 #define SUPER_BLOCK_ALIGN_SIZE 512
 #define MINIMAL_BLOCK_SIZE 1024
-#define MAXIMUM_BLOCK_SIZE 8192
+/* MAXIMUM_BLOCK_SIZE is 4096 (PAGE_SIZE): the VFS buffer layer (sb_bread)
+   cannot handle blocks larger than a page, so 8192 images cannot be mounted.
+   Larger blocks (e.g. 8192) may come back later via direct block I/O / DMA. */
+#define MAXIMUM_BLOCK_SIZE 4096
 #define FS_PADDING_SIZE 1024
 #define MAX_INODE_COUNTS 1 // this value will be calculated by mkfs.yukifs with the actual devices
                            // like /dev/sda1 or /opt/yukifs/fsimage.img

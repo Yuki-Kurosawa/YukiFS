@@ -156,14 +156,14 @@ fi
 
 # add checks for keeping filesystem is not wasting spaces
 
-if [ $MINIMAL_BLOCK_SIZE -lt 1024 ] || [ $MINIMAL_BLOCK_SIZE -gt 8192 ]; then
-    echo "MINIMAL_BLOCK_SIZE must between 1024 and 8192"
+if [ $MINIMAL_BLOCK_SIZE -lt 1024 ] || [ $MINIMAL_BLOCK_SIZE -gt 4096 ]; then
+    echo "MINIMAL_BLOCK_SIZE must between 1024 and 4096"
     echo "Please modify MINIMAL_BLOCK_SIZE in ../../include/file_table.h"
     exit 1
 fi
 
-if [ $MAXIMUM_BLOCK_SIZE -lt 1024 ] || [ $MAXIMUM_BLOCK_SIZE -gt 8192 ]; then
-    echo "MAXIMUM_BLOCK_SIZE must between 1024 and 8192"
+if [ $MAXIMUM_BLOCK_SIZE -lt 1024 ] || [ $MAXIMUM_BLOCK_SIZE -gt 4096 ]; then
+    echo "MAXIMUM_BLOCK_SIZE must between 1024 and 4096"
     echo "MAXIMUM_BLOCK_SIZE must equal or larger then MINIMAL_BLOCK_SIZE"
     echo "Please modify MAXIMUM_BLOCK_SIZE in ../../include/file_table.h"
     exit 1
