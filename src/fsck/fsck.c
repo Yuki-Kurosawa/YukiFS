@@ -736,9 +736,9 @@ static const char *detect_foreign_fs(const unsigned char *img, size_t size,
 {
     static const struct foreign_fs table[] = {
         { "ext2/ext3/ext4", "fsck.ext4", 1080, SIG_EXT, sizeof(SIG_EXT) },
-        { "XFS",            "fsck.xfs",  0,    SIG_XFS, sizeof(SIG_XFS) },
+        { "XFS",            "xfs_repair", 0,    SIG_XFS, sizeof(SIG_XFS) },
         { "Btrfs",          "btrfs",     0x10040, SIG_BTRFS, sizeof(SIG_BTRFS) },
-        { "NTFS",           "ntfsck",    3,    SIG_NTFS, sizeof(SIG_NTFS) },
+        { "NTFS",           "ntfsfix",   3,    SIG_NTFS, sizeof(SIG_NTFS) },
         { "exFAT",          "fsck.exfat",3,    SIG_EXFAT, sizeof(SIG_EXFAT) },
         { "F2FS",           "fsck.f2fs", 1024, SIG_F2FS, sizeof(SIG_F2FS) },
         { "JFS",            "fsck.jfs",  32768, SIG_JFS, sizeof(SIG_JFS) },
@@ -760,32 +760,77 @@ static const char *detect_foreign_fs(const unsigned char *img, size_t size,
     return NULL;
 }
 
+/* Check/fix semantics of fsck.yukifs are NOT those of the target fsck: we
+   pass only the image path plus the flag that mirrors our mode, so the
+   hand-off works with no tty attached (e2fsck otherwise aborts with
+   "need terminal for interactive repairs"). */
+struct foreign_fsck_map {
+    const char *prog_substr;  /* substring of the fsck program name */
+    const char *check_opt;    /* added when we run WITHOUT --fix (read-only) */
+    const char *fix_opt;      /* added when we run WITH --fix (auto-repair) */
+};
+
 /* Dispatch the check to the matching fsck program (priority 4). The original
-   command-line arguments (minus argv[0]) are passed through. If the program
-   is not installed, exit gracefully instead of pretending to check it. */
+   command-line options of fsck.yukifs are NOT forwarded (the target would not
+   understand --fix/-b/...); only the image path and the translated mode flag
+   are. If the program is not installed, exit gracefully instead of pretending
+   to check it. */
 static int dispatch_foreign_fs(const char *fsck_prog, const char *fname,
-                               char *const argv[])
+                               int do_fix, const char *path)
 {
     printf("not a YukiFS image: detected %s filesystem\n", fname);
     printf("handing off to %s...\n", fsck_prog);
 
-    int argc = 0;
-    while (argv[argc]) argc++;
-    char **new_argv = malloc((size_t)(argc + 1) * sizeof(char *));
-    if (!new_argv) { perror("malloc"); return 8; }
-    new_argv[0] = (char *)fsck_prog;
-    for (int i = 1; i < argc; i++) new_argv[i] = argv[i];
-    new_argv[argc] = NULL;
+    static const struct foreign_fsck_map maps[] = {
+        { "xfs_repair",    "-n",            "" },          /* repairs by default */
+        { "btrfs",         "",              "--repair" },  /* read-only by default */
+        { "ntfsfix",       NULL,            "" },          /* repair-only: no read-only check mode */
+        { "e2fsck",        "-n",            "-y" },
+        { "fsck.ext",      "-n",            "-y" },
+        { "fsck.fat",      "-n",            "-y" },
+        { "fsck.vfat",     "-n",            "-y" },
+        { "fsck.msdos",    "-n",            "-y" },
+        { "fsck.exfat",    "-n",            "-y" },
+        { "fsck.f2fs",     "-n",            "-y" },
+        { "fsck.jfs",      "-n",            "-y" },
+        { "fsck.udf",      "-n",            "-y" },
+        { "fsck.reiserfs", "-n",            "-y" },
+        { "fsck.minix",    "-n",            "-y" },
+        { NULL,            NULL,            NULL },
+    };
+    const char *map_opt = NULL;
+    int map_found = 0;
+    for (const struct foreign_fsck_map *m = maps; m->prog_substr; m++) {
+        if (strstr(fsck_prog, m->prog_substr)) {
+            map_found = 1;
+            map_opt = do_fix ? m->fix_opt : m->check_opt;
+            break;
+        }
+    }
+    if (map_found && map_opt == NULL) {
+        fprintf(stderr, "fsck.yukifs: %s only repairs, it has no read-only "
+                        "check mode; re-run with --fix to invoke it\n",
+                fsck_prog);
+        return 1;
+    }
+    if (map_opt && map_opt[0])
+        printf("  translated semantics: %s\n", map_opt);
+
+    char *new_argv[4];
+    int n = 0;
+    new_argv[n++] = (char *)fsck_prog;
+    new_argv[n++] = (char *)path;
+    if (map_opt && map_opt[0]) new_argv[n++] = (char *)map_opt;
+    new_argv[n] = NULL;
 
     pid_t pid = fork();
-    if (pid < 0) { perror("fork"); free(new_argv); return 8; }
+    if (pid < 0) { perror("fork"); return 8; }
     if (pid == 0) {
         execvp(fsck_prog, new_argv);
         fprintf(stderr, "fsck.yukifs: %s not found - cannot check %s image; "
                         "exiting\n", fsck_prog, fname);
         _exit(127);
     }
-    free(new_argv);
     int st;
     if (waitpid(pid, &st, 0) < 0) { perror("waitpid"); return 8; }
     if (WIFEXITED(st)) return WEXITSTATUS(st);
@@ -1152,7 +1197,7 @@ int main(int argc, char **argv)
         if (fname) {
             if (mapped) munmap(img, size); else free(img);
             close(fd);
-            return dispatch_foreign_fs(fsck_prog, fname, argv);
+            return dispatch_foreign_fs(fsck_prog, fname, do_fix, path);
         }
 
         /* ---- priority 2/3/5: carve, then rebuild as needed ------------- */
