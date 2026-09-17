@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <errno.h>
 
@@ -43,12 +44,19 @@
 #define HD_SUPERBLOCK_OFFSET_POS 136
 #define CANDIDATE_BLOCK_SIZES { 1024, 2048, 4096 }
 #define DEFAULT_SPARSE_THRESHOLD_PCT 5
+/* An image whose hidden data (0x55AA) starts closer than this to offset 0 has
+   no meaningful head padding - it is a plain file / partition slice, not a
+   disk image. fsck --fix then pads the head to this alignment and saves the
+   result as a NEW image file instead of patching in place. 1 MiB is the
+   standard modern partition alignment (2048 x 512B sectors). */
+#define PARTITION_ALIGN_SIZE (1024U * 1024U)
 
 struct sb_view {
     int valid;
     uint32_t block_size;
     uint32_t block_count;
     uint64_t sb_offset;
+    uint64_t hd_offset; /* absolute offset of the 0x55AA hidden-data header */
 };
 
 struct found {
@@ -106,6 +114,14 @@ static uint32_t rd_u32(const unsigned char *p)
            ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
+static void wr_u32(unsigned char *p, uint32_t v)
+{
+    p[0] = (unsigned char)v;
+    p[1] = (unsigned char)(v >> 8);
+    p[2] = (unsigned char)(v >> 16);
+    p[3] = (unsigned char)(v >> 24);
+}
+
 static int64_t find_bytes(const unsigned char *img, size_t size,
                           const unsigned char *pat, size_t plen,
                           size_t start, size_t window_limit)
@@ -136,6 +152,7 @@ static struct sb_view detect_metadata(const unsigned char *img, size_t size,
                 const unsigned char *s = img + sbo;
                 if (memcmp(s, "YUKI", 4) == 0) {
                     sb.valid = 1;
+                    sb.hd_offset = (uint64_t)hd;
                     sb.block_size = rd_u32(s + 8);
                     sb.block_count = rd_u32(s + 12);
                     sb.sb_offset = sbo;
@@ -162,6 +179,29 @@ static void print_off(const char *name, uint32_t raw, uint64_t recon, uint64_t s
     }
 }
 
+struct sb_offsets {
+    uint64_t ito, dbo, dbo_total, dbo_end, bmo, unalloc;
+    uint32_t bmb;
+};
+
+/* Reconstruct the superblock offset layout from mkfs formulas (blind scan
+   result ito_recon + layout rules), exactly as print_sb_full reports it. */
+static void compute_sb_offsets(const unsigned char *s, uint32_t bs, uint32_t bc,
+                               uint64_t size, uint64_t ito_recon,
+                               struct sb_offsets *o)
+{
+    uint32_t total_inodes = rd_u32(s + 20);
+    uint64_t it_storage = ((uint64_t)total_inodes * FILE_OBJECT_ALIGN_SIZE +
+                           bs - 1) / bs * bs;
+    o->ito = ito_recon;
+    o->bmo = o->ito + it_storage;
+    o->bmb = (uint32_t)(((bc + 7) / 8 + bs - 1) / bs);
+    o->dbo = o->bmo + (uint64_t)o->bmb * bs;
+    o->dbo_total = (uint64_t)bc * bs;
+    o->dbo_end = o->dbo + o->dbo_total;
+    o->unalloc = size > o->dbo_end ? size - o->dbo_end : 0;
+}
+
 static void print_sb_full(const unsigned char *s, uint32_t bs, uint32_t bc,
                           uint64_t size, uint64_t ito_recon)
 {
@@ -169,15 +209,9 @@ static void print_sb_full(const unsigned char *s, uint32_t bs, uint32_t bc,
        offset fields in the superblock are corrupt we print the values infofs
        would print on an intact image. Raw values are always shown when they
        differ. */
+    struct sb_offsets o;
+    compute_sb_offsets(s, bs, bc, size, ito_recon, &o);
     uint32_t total_inodes = rd_u32(s + 20);
-    uint64_t it_storage = ((uint64_t)total_inodes * FILE_OBJECT_ALIGN_SIZE +
-                           bs - 1) / bs * bs;
-    uint64_t bmo_recon = ito_recon + it_storage;
-    uint32_t bmb_recon = ((bc + 7) / 8 + bs - 1) / bs;
-    uint64_t dbo_recon = bmo_recon + (uint64_t)bmb_recon * bs;
-    uint64_t dbo_total_recon = (uint64_t)bc * bs;
-    uint64_t dbo_end_recon = dbo_recon + dbo_total_recon;
-    uint64_t unalloc_recon = size > dbo_end_recon ? size - dbo_end_recon : 0;
 
     printf("Superblock Info (offsets reconstructed, not trusted from disk):\n");
     printf("  Superblock Size: %zu\n", sizeof(struct superblock_info));
@@ -192,13 +226,13 @@ static void print_sb_full(const unsigned char *s, uint32_t bs, uint32_t bc,
     printf("  Inode Table Size: %u\n", rd_u32(s + 28));
     printf("  Inode Table Clusters: %u\n", rd_u32(s + 32));
     printf("  Inode Table Storage Size: %u\n", rd_u32(s + 36));
-    print_off("Inode Table Offset", rd_u32(s + 40), ito_recon, size);
-    print_off("Data Blocks Offset", rd_u32(s + 44), dbo_recon, size);
-    print_off("Data Blocks Total Size", rd_u32(s + 48), dbo_total_recon, size);
-    print_off("Data Blocks End Offset", rd_u32(s + 52), dbo_end_recon, size);
-    print_off("Block Bitmap Offset", rd_u32(s + 56), bmo_recon, size);
-    print_off("Block Bitmap Blocks", rd_u32(s + 60), bmb_recon, size);
-    print_off("Unallocated Space Size", rd_u32(s + 64), unalloc_recon, size);
+    print_off("Inode Table Offset", rd_u32(s + 40), o.ito, size);
+    print_off("Data Blocks Offset", rd_u32(s + 44), o.dbo, size);
+    print_off("Data Blocks Total Size", rd_u32(s + 48), o.dbo_total, size);
+    print_off("Data Blocks End Offset", rd_u32(s + 52), o.dbo_end, size);
+    print_off("Block Bitmap Offset", rd_u32(s + 56), o.bmo, size);
+    print_off("Block Bitmap Blocks", rd_u32(s + 60), o.bmb, size);
+    print_off("Unallocated Space Size", rd_u32(s + 64), o.unalloc, size);
 }
 
 /* Count superblock offset fields whose raw value is corrupt (out of range or
@@ -207,20 +241,12 @@ static void print_sb_full(const unsigned char *s, uint32_t bs, uint32_t bc,
 static int count_bad_sb_fields(const unsigned char *s, uint32_t bs, uint32_t bc,
                                uint64_t size, uint64_t ito_recon)
 {
-    uint32_t total_inodes = rd_u32(s + 20);
-    uint64_t it_storage = ((uint64_t)total_inodes * FILE_OBJECT_ALIGN_SIZE +
-                           bs - 1) / bs * bs;
-    uint64_t bmo_recon = ito_recon + it_storage;
-    uint32_t bmb_recon = ((bc + 7) / 8 + bs - 1) / bs;
-    uint64_t dbo_recon = bmo_recon + (uint64_t)bmb_recon * bs;
-    uint64_t dbo_total_recon = (uint64_t)bc * bs;
-    uint64_t dbo_end_recon = dbo_recon + dbo_total_recon;
-    uint64_t unalloc_recon = size > dbo_end_recon ? size - dbo_end_recon : 0;
-
+    struct sb_offsets o;
+    compute_sb_offsets(s, bs, bc, size, ito_recon, &o);
     struct { unsigned off; uint64_t recon; } fields[] = {
-        { 40, ito_recon }, { 44, dbo_recon }, { 48, dbo_total_recon },
-        { 52, dbo_end_recon }, { 56, bmo_recon }, { 60, bmb_recon },
-        { 64, unalloc_recon },
+        { 40, o.ito }, { 44, o.dbo }, { 48, o.dbo_total },
+        { 52, o.dbo_end }, { 56, o.bmo }, { 60, o.bmb },
+        { 64, o.unalloc },
     };
     int bad = 0;
     for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
@@ -238,24 +264,16 @@ static int count_bad_sb_fields(const unsigned char *s, uint32_t bs, uint32_t bc,
 static int fix_sb(int fd, const unsigned char *s, uint32_t bs, uint32_t bc,
                   uint64_t size, uint64_t ito_recon, uint64_t sb_off)
 {
-    uint32_t total_inodes = rd_u32(s + 20);
-    uint64_t it_storage = ((uint64_t)total_inodes * FILE_OBJECT_ALIGN_SIZE +
-                           bs - 1) / bs * bs;
-    uint64_t bmo_recon = ito_recon + it_storage;
-    uint32_t bmb_recon = ((bc + 7) / 8 + bs - 1) / bs;
-    uint64_t dbo_recon = bmo_recon + (uint64_t)bmb_recon * bs;
-    uint64_t dbo_total_recon = (uint64_t)bc * bs;
-    uint64_t dbo_end_recon = dbo_recon + dbo_total_recon;
-    uint64_t unalloc_recon = size > dbo_end_recon ? size - dbo_end_recon : 0;
-
+    struct sb_offsets o;
+    compute_sb_offsets(s, bs, bc, size, ito_recon, &o);
     struct { const char *name; unsigned off; uint64_t recon; } fields[] = {
-        { "Inode Table Offset",     40, ito_recon },
-        { "Data Blocks Offset",     44, dbo_recon },
-        { "Data Blocks Total Size", 48, dbo_total_recon },
-        { "Data Blocks End Offset", 52, dbo_end_recon },
-        { "Block Bitmap Offset",    56, bmo_recon },
-        { "Block Bitmap Blocks",    60, bmb_recon },
-        { "Unallocated Space Size", 64, unalloc_recon },
+        { "Inode Table Offset",     40, o.ito },
+        { "Data Blocks Offset",     44, o.dbo },
+        { "Data Blocks Total Size", 48, o.dbo_total },
+        { "Data Blocks End Offset", 52, o.dbo_end },
+        { "Block Bitmap Offset",    56, o.bmo },
+        { "Block Bitmap Blocks",    60, o.bmb },
+        { "Unallocated Space Size", 64, o.unalloc },
     };
     int fixed = 0;
     for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
@@ -274,6 +292,129 @@ static int fix_sb(int fd, const unsigned char *s, uint32_t bs, uint32_t bc,
     return fixed;
 }
 
+/* Write a repaired copy of the image to <out_path>. Corrupt superblock offset
+   fields are replaced with reconstructed values; the input is never touched.
+   Returns 0 on success, -1 on error. */
+static int emit_fixed_copy(const unsigned char *img, size_t size,
+                           const struct sb_view *sb, uint64_t ito_recon,
+                           const char *out_path)
+{
+    unsigned char *buf = malloc(size);
+    if (!buf) { perror("malloc"); return -1; }
+    memcpy(buf, img, size);
+
+    const unsigned char *s = buf + sb->sb_offset;
+    struct sb_offsets o;
+    compute_sb_offsets(s, sb->block_size, sb->block_count, size, ito_recon, &o);
+    struct { unsigned off; uint64_t recon; } fields[] = {
+        { 40, o.ito }, { 44, o.dbo }, { 48, o.dbo_total },
+        { 52, o.dbo_end }, { 56, o.bmo }, { 60, o.bmb },
+        { 64, o.unalloc },
+    };
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        uint32_t raw = rd_u32(s + fields[i].off);
+        if (raw <= size && (uint64_t)raw == fields[i].recon)
+            continue;
+        wr_u32((unsigned char *)s + fields[i].off, (uint32_t)fields[i].recon);
+        printf("  fixed %-26s: %u -> %llu\n", "sb field",
+               raw, (unsigned long long)fields[i].recon);
+    }
+
+    int fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) { perror("open"); free(buf); return -1; }
+    size_t off = 0;
+    while (off < size) {
+        ssize_t w = write(fd, buf + off, size - off);
+        if (w <= 0) { perror("write"); close(fd); free(buf); return -1; }
+        off += (size_t)w;
+    }
+    fdatasync(fd);
+    close(fd);
+    free(buf);
+    printf("  repaired image written to %s (%zu bytes, input untouched)\n",
+           out_path, size);
+    return 0;
+}
+
+/* Pad-and-save mode: the image's hidden data starts too close to offset 0
+   (plain file / partition slice, no head padding). Build a NEW image whose
+   head is padded to PARTITION_ALIGN_SIZE, shift every absolute offset field
+   (hidden-data header + superblock) by the padding delta, repair corrupt
+   fields with reconstructed values, and write the result to <out_path>. The
+   input is never modified. Returns 0 on success, -1 on error. */
+static int emit_padded_image(const unsigned char *img, size_t size,
+                             const struct sb_view *sb, uint64_t ito_recon,
+                             const char *out_path)
+{
+    uint64_t hd = sb->hd_offset;
+    if (!hd || hd >= PARTITION_ALIGN_SIZE) {
+        fprintf(stderr, "emit_padded_image: nothing to pad (hd=%llu)\n",
+                (unsigned long long)hd);
+        return -1;
+    }
+    uint64_t delta = PARTITION_ALIGN_SIZE - hd;
+    size_t new_size = (size_t)(delta + size);
+    unsigned char *buf = calloc(1, new_size);
+    if (!buf) { perror("calloc"); return -1; }
+    memcpy(buf + delta, img, size);
+
+    /* hidden-data header: absolute offset fields shift by delta. Written
+       through struct hidden_data_struct to honor compiler member alignment
+       (see rebuild_image). */
+    struct hidden_data_struct *h =
+        (struct hidden_data_struct *)(buf + PARTITION_ALIGN_SIZE);
+    h->hidden_data_offset += (uint32_t)delta;
+    h->built_in_kernel_module_offset += (uint32_t)delta;
+    h->superblock_offset += delta;
+
+    /* superblock: absolute offset fields shift by delta; corrupt fields take
+       the reconstructed value (already shifted); size/count fields keep their
+       original value. */
+    unsigned char *s = buf + delta + sb->sb_offset;
+    struct sb_offsets o;
+    compute_sb_offsets(s, sb->block_size, sb->block_count,
+                       (uint64_t)new_size, ito_recon + delta, &o);
+    struct { const char *name; unsigned off; int is_offset; uint64_t recon; } fields[] = {
+        { "Inode Table Offset",     40, 1, o.ito },
+        { "Data Blocks Offset",     44, 1, o.dbo },
+        { "Data Blocks Total Size", 48, 0, o.dbo_total },
+        { "Data Blocks End Offset", 52, 1, o.dbo_end },
+        { "Block Bitmap Offset",    56, 1, o.bmo },
+        { "Block Bitmap Blocks",    60, 0, o.bmb },
+        { "Unallocated Space Size", 64, 0, o.unalloc },
+    };
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        uint32_t raw = rd_u32(s + fields[i].off);
+        uint64_t target;
+        if (raw <= size && (uint64_t)raw == fields[i].recon - (fields[i].is_offset ? delta : 0))
+            target = fields[i].is_offset ? (uint64_t)raw + delta : (uint64_t)raw;
+        else
+            target = fields[i].recon;
+        if (target != raw) {
+            wr_u32(s + fields[i].off, (uint32_t)target);
+            printf("  %-26s: %u -> %llu\n", fields[i].name, raw,
+                   (unsigned long long)target);
+        }
+    }
+
+    int fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) { perror("open"); free(buf); return -1; }
+    size_t off = 0;
+    while (off < new_size) {
+        ssize_t w = write(fd, buf + off, new_size - off);
+        if (w <= 0) { perror("write"); close(fd); free(buf); return -1; }
+        off += (size_t)w;
+    }
+    fdatasync(fd);
+    close(fd);
+    free(buf);
+    printf("  padded head by %llu bytes, hidden data now at %u\n",
+           (unsigned long long)delta, PARTITION_ALIGN_SIZE);
+    printf("  repaired image written to %s (%zu bytes, input untouched)\n",
+           out_path, new_size);
+    return 0;
+}
+
 static void print_ts(const char *label, uint64_t sec){
     if (sec == 0) { printf(" %s=-", label); return; }
     time_t t = (time_t)sec;
@@ -285,7 +426,7 @@ static void print_ts(const char *label, uint64_t sec){
 }
 
 static int mode_a_scan(const unsigned char *img, size_t size,
-                       const struct sb_view *sb, int do_fix, int fd)
+                       const struct sb_view *sb, uint64_t *ito_out)
 {
     uint32_t bs = sb->block_size;
     uint32_t bc = sb->block_count;
@@ -318,23 +459,15 @@ static int mode_a_scan(const unsigned char *img, size_t size,
     /* The lowest inode slot found is the root slot, hence the real
        inode_table_offset - even when the superblock field is corrupt. */
     uint64_t ito_recon = found_n ? found[0].offset : 0;
+    if (ito_out) *ito_out = ito_recon;
     int sb_problems = 0;
     if (sb->valid) {
         print_sb_full(img + sb->sb_offset, bs, bc, size, ito_recon);
-        if (do_fix) {
-            int fixed = fix_sb(fd, img + sb->sb_offset, bs, bc, size,
-                               ito_recon, sb->sb_offset);
-            if (fixed < 0)
-                return -1;
-            printf("  [fsck] superblock offset fields: %d inconsistent -> written back\n",
-                   fixed);
-        } else {
-            sb_problems = count_bad_sb_fields(img + sb->sb_offset, bs, bc,
-                                              size, ito_recon);
-            if (sb_problems)
-                printf("  [fsck] %d superblock offset field(s) inconsistent; "
-                       "re-run with -f/--fix to repair\n", sb_problems);
-        }
+        sb_problems = count_bad_sb_fields(img + sb->sb_offset, bs, bc,
+                                          size, ito_recon);
+        if (sb_problems)
+            printf("  [fsck] %d superblock offset field(s) inconsistent; "
+                   "re-run with -f/--fix to repair\n", sb_problems);
     }
 
     if (found_n == 0) printf("  (no inode candidates found)\n");
@@ -482,11 +615,19 @@ static void preview(const unsigned char *p, size_t len, char *out, size_t outsz)
     }
 }
 
+struct region {
+    uint64_t start;  /* first data block number (relative to the data area) */
+    uint64_t count;  /* number of contiguous data blocks */
+};
+
 static int mode_b_carve(const unsigned char *img, size_t size,
-                        uint32_t forced_bs, int threshold_pct)
+                        uint32_t forced_bs, int threshold_pct,
+                        struct region **regions_out, size_t *nregions_out,
+                        uint32_t *bs_out)
 {
     uint32_t bs = forced_bs;
     if (!bs) bs = guess_block_size(img, size, NULL);
+    if (bs_out) *bs_out = bs;
     size_t nblk = size / bs;
 
     printf("\n=== metadata GONE - data carving mode ===\n");
@@ -510,6 +651,8 @@ static int mode_b_carve(const unsigned char *img, size_t size,
     /* group contiguous data blocks into recovered regions; zero/sparse split */
     printf("\n--- recovered regions / holes ---\n");
     size_t regions = 0, holes = 0;
+    struct region *rlist = NULL;
+    size_t rcap = 0;
     size_t b = 0;
     while (b < nblk) {
         if (cls[b] == 2) {
@@ -522,7 +665,14 @@ static int mode_b_carve(const unsigned char *img, size_t size,
             preview(img + byte_off, byte_len > 64 ? 64 : byte_len, prv, sizeof(prv));
             printf("  region blk %zu..%zu : size=%llu type=%s preview=%s%s\n",
                    start, b, (unsigned long long)byte_len, typ, prv,
-                   start == 0 ? "  <- possible boot/padding area" : "");
+                   start == 0 ? "  <- possible root directory block" : "");
+            if (regions == rcap) {
+                rcap = rcap ? rcap * 2 : 64;
+                rlist = realloc(rlist, rcap * sizeof(*rlist));
+                if (!rlist) { perror("realloc"); free(cls); return 1; }
+            }
+            rlist[regions].start = (uint64_t)start;
+            rlist[regions].count = (uint64_t)(b - start + 1);
             regions++;
             b++;
         } else {
@@ -546,6 +696,276 @@ static int mode_b_carve(const unsigned char *img, size_t size,
     printf("        NOT merge surrounding data into one giant file.\n");
 
     free(cls);
+    if (regions_out) *regions_out = rlist; else free(rlist);
+    if (nregions_out) *nregions_out = regions;
+    return 0;
+}
+
+/* ---- foreign filesystem detection (priority 4) ------------------------- */
+
+struct foreign_fs {
+    const char *name;   /* human readable */
+    const char *fsck;   /* fsck program to dispatch to */
+    size_t off;         /* signature offset */
+    const unsigned char *sig;
+    size_t len;
+};
+
+static const unsigned char SIG_XFS[]    = { 'X','F','S','B' };
+static const unsigned char SIG_BTRFS[]  = { '_','B','H','R','f','S','_','M' };
+static const unsigned char SIG_NTFS[]   = { 'N','T','F','S' };
+static const unsigned char SIG_EXFAT[]  = { 'E','X','F','A','T' };
+static const unsigned char SIG_F2FS[]   = { 'F','2','F','S' };
+static const unsigned char SIG_JFS[]    = { 'J','F','S','1' };
+static const unsigned char SIG_UDF[]    = { 'B','E','A','0','1' };
+static const unsigned char SIG_REISER[] = { 'R','e','i','s','e','r','F','s' };
+static const unsigned char SIG_EXT[]    = { 0x53, 0xEF }; /* ext2/3/4 @1080 */
+
+/* FAT boot sectors end with 0x55AA at offset 510 and carry a BPB; distinguish
+   from a bare MBR by the BPB jump + OEM name area. */
+static int looks_like_fat(const unsigned char *p, size_t size)
+{
+    if (size < 512) return 0;
+    if (!(p[510] == 0x55 && p[511] == 0xAA)) return 0;
+    if (!(p[0] == 0xEB || p[0] == 0xE9)) return 0; /* x86 jump */
+    return 1;
+}
+
+static const char *detect_foreign_fs(const unsigned char *img, size_t size,
+                                     const char **fsck_out)
+{
+    static const struct foreign_fs table[] = {
+        { "ext2/ext3/ext4", "fsck.ext4", 1080, SIG_EXT, sizeof(SIG_EXT) },
+        { "XFS",            "fsck.xfs",  0,    SIG_XFS, sizeof(SIG_XFS) },
+        { "Btrfs",          "btrfs",     0x10040, SIG_BTRFS, sizeof(SIG_BTRFS) },
+        { "NTFS",           "ntfsck",    3,    SIG_NTFS, sizeof(SIG_NTFS) },
+        { "exFAT",          "fsck.exfat",3,    SIG_EXFAT, sizeof(SIG_EXFAT) },
+        { "F2FS",           "fsck.f2fs", 1024, SIG_F2FS, sizeof(SIG_F2FS) },
+        { "JFS",            "fsck.jfs",  32768, SIG_JFS, sizeof(SIG_JFS) },
+        { "UDF",            "fsck.udf",  32769, SIG_UDF, sizeof(SIG_UDF) },
+        { "ReiserFS",       "fsck.reiserfs", 0x10000, SIG_REISER, sizeof(SIG_REISER) },
+    };
+    for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++) {
+        const struct foreign_fs *f = &table[i];
+        if (f->off + f->len > size) continue;
+        if (memcmp(img + f->off, f->sig, f->len) == 0) {
+            *fsck_out = f->fsck;
+            return f->name;
+        }
+    }
+    if (looks_like_fat(img, size)) {
+        *fsck_out = "fsck.fat";
+        return "FAT12/16/32";
+    }
+    return NULL;
+}
+
+/* Dispatch the check to the matching fsck program (priority 4). The original
+   command-line arguments (minus argv[0]) are passed through. If the program
+   is not installed, exit gracefully instead of pretending to check it. */
+static int dispatch_foreign_fs(const char *fsck_prog, const char *fname,
+                               char *const argv[])
+{
+    printf("not a YukiFS image: detected %s filesystem\n", fname);
+    printf("handing off to %s...\n", fsck_prog);
+
+    int argc = 0;
+    while (argv[argc]) argc++;
+    char **new_argv = malloc((size_t)(argc + 1) * sizeof(char *));
+    if (!new_argv) { perror("malloc"); return 8; }
+    new_argv[0] = (char *)fsck_prog;
+    for (int i = 1; i < argc; i++) new_argv[i] = argv[i];
+    new_argv[argc] = NULL;
+
+    pid_t pid = fork();
+    if (pid < 0) { perror("fork"); free(new_argv); return 8; }
+    if (pid == 0) {
+        execvp(fsck_prog, new_argv);
+        fprintf(stderr, "fsck.yukifs: %s not found - cannot check %s image; "
+                        "exiting\n", fsck_prog, fname);
+        _exit(127);
+    }
+    free(new_argv);
+    int st;
+    if (waitpid(pid, &st, 0) < 0) { perror("waitpid"); return 8; }
+    if (WIFEXITED(st)) return WEXITSTATUS(st);
+    return 8;
+}
+
+/* Length of the leading run of zero bytes - the "head padding". YukiFS disk
+   images normally have >= 1 MiB here (partition alignment); a plain file or a
+   raw partition slice has only fs_padding (or none at all). */
+static size_t head_zero_len(const unsigned char *img, size_t size)
+{
+    size_t z = 0;
+    while (z < size && img[z] == 0) z++;
+    return z;
+}
+
+/* ---------------------------------------------------------------------- */
+
+/* Rebuild a full YukiFS metadata set (hidden header + superblock + inode
+   table + block bitmap) from carving results, then lay out the data area.
+   priority 3/5 (save mode): write a NEW image file - metadata at the head,
+   carved data moved after it. priority 2 (in_place): rewrite the metadata at
+   the head of the existing image, data stays where it is (only valid when
+   the reconstructed metadata fits in the zero head). The superblock layout
+   follows mkfs formulas (no built-in kernel module: hidden data == one
+   block). Returns 0 on success, 8 on hard error. */
+static int rebuild_image(const unsigned char *img, size_t size, uint32_t bs,
+                         size_t Z, const struct region *regions, size_t nregions,
+                         int in_place, int orig_fd, const char *out_path)
+{
+    uint64_t data_len = (uint64_t)size - Z;      /* bytes of carved data area */
+    uint64_t nblk = data_len / bs;               /* total data blocks */
+    uint64_t tail = data_len - nblk * bs;        /* trailing partial block */
+    uint64_t inode_count = 1 + nregions;
+    uint64_t it_storage = ((nblk * FILE_OBJECT_ALIGN_SIZE + bs - 1) / bs) * bs;
+    uint64_t bmb = (((nblk + 7) / 8) + bs - 1) / bs;
+    uint64_t sb_off = (uint64_t)bs * 2;          /* no built-in ko */
+    uint64_t ito = sb_off + bs;                  /* superblock padded to bs */
+    uint64_t bmo = ito + it_storage;
+    uint64_t dbo_formula = bmo + bmb * bs;
+    uint64_t dbo = in_place ? (uint64_t)Z : dbo_formula;
+    uint64_t dbo_end = dbo + nblk * bs;
+    uint64_t new_size = dbo_end + tail;
+
+    if (!in_place && dbo_end > UINT32_MAX) {
+        fprintf(stderr, "fsck: rebuilt layout exceeds the 4GiB limit\n");
+        return 8;
+    }
+    if (in_place && dbo_formula > Z) {
+        fprintf(stderr, "fsck: in-place rebuild needs %llu bytes of head space "
+                        "but only %zu zero bytes are available; "
+                        "use -o/--out to save a new image instead\n",
+                (unsigned long long)dbo_formula, Z);
+        return 8;
+    }
+
+    unsigned char *buf = calloc(1, new_size ? new_size : 1);
+    if (!buf) { perror("calloc"); return 8; }
+    if (in_place) {
+        memcpy(buf, img, size); /* preserve data area + any non-zero tail */
+    } else {
+        memcpy(buf + dbo, img + Z, data_len); /* move carved data after metadata */
+    }
+
+    time_t now = time(NULL);
+
+    /* hidden data header (no built-in kernel module), 55AA at fs_padding=bs.
+       Written through struct hidden_data_struct so the compiler-applied
+       member alignment (u32 fields shifted by 2 after the u8 arrays) matches
+       what mkfs and infofs produce/consume. */
+    struct hidden_data_struct *hd = (struct hidden_data_struct *)(buf + bs);
+    memset(hd, 0, sizeof(struct hidden_data_struct));
+    hd->hidden_magic_number[0] = 0x55;
+    hd->hidden_magic_number[1] = 0xAA;
+    hd->hidden_end_magic_number[0] = 0xAA;
+    hd->hidden_end_magic_number[1] = 0x55;
+    hd->fs_version[0] = 0; hd->fs_version[1] = 1; hd->fs_version[2] = 0;
+    memcpy(hd->fs_build_tool_name, "fsck", 4);
+    hd->fs_build_tool_version[0] = 0; hd->fs_build_tool_version[1] = 1;
+    hd->fs_build_tool_version[2] = 0;
+    hd->built_in_ELF_offset = 0;
+    hd->built_in_ELF_size = 0;
+    hd->built_in_ELF_storage_size = bs;
+    hd->hidden_data_offset = bs;
+    hd->hidden_data_header_size = sizeof(struct hidden_data_struct);
+    hd->hidden_data_header_storage_size = bs;
+    hd->hidden_data_size = bs;
+    hd->hidden_data_storage_size = bs;
+    /* built_in_kernel_module_version[64]: all zero (no built-in ko) */
+    hd->built_in_kernel_module_offset = bs * 2;
+    hd->built_in_kernel_module_size = 0;
+    hd->built_in_kernel_module_storage_size = 0;
+    hd->built_in_kernel_architechture = 0;
+    hd->superblock_offset = sb_off;
+
+    /* superblock */
+    unsigned char *s = buf + sb_off;
+    memset(s, 0, sizeof(struct superblock_info));
+    memcpy(s + 0, "YUKI", 4);                    /* magic_number[8] */
+    wr_u32(s + 8, bs);                           /* block_size */
+    wr_u32(s + 12, (uint32_t)nblk);              /* block_count */
+    /* count used data blocks (root + regions, clipped to nblk) */
+    uint64_t used = 1;
+    for (size_t i = 0; i < nregions; i++)
+        used += regions[i].count < nblk - regions[i].start
+                    ? regions[i].count : (nblk > regions[i].start ? nblk - regions[i].start : 0);
+    wr_u32(s + 16, (uint32_t)(nblk - used));     /* block_free */
+    wr_u32(s + 20, (uint32_t)nblk);              /* total_inodes */
+    wr_u32(s + 24, (uint32_t)(nblk - inode_count)); /* free_inodes */
+    wr_u32(s + 28, (uint32_t)(nblk * FILE_OBJECT_ALIGN_SIZE)); /* inode_table_size */
+    wr_u32(s + 32, (uint32_t)((nblk * FILE_OBJECT_ALIGN_SIZE + bs - 1) / bs)); /* clusters */
+    wr_u32(s + 36, (uint32_t)it_storage);        /* inode_table_storage_size */
+    wr_u32(s + 40, (uint32_t)ito);               /* inode_table_offset */
+    wr_u32(s + 56, (uint32_t)bmo);               /* bitmap_offset */
+    wr_u32(s + 60, (uint32_t)bmb);               /* bitmap_blocks */
+    wr_u32(s + 44, (uint32_t)dbo);               /* data_blocks_offset */
+    wr_u32(s + 48, (uint32_t)(nblk * bs));       /* data_blocks_total_size */
+    wr_u32(s + 52, (uint32_t)dbo_end);           /* data_blocks_end_offset */
+    wr_u32(s + 64, (uint32_t)tail);              /* unallocated_space_size */
+
+    /* inode table: total_inodes slots, first = root, then one per region */
+    for (uint64_t i = 0; i < nblk; i++)
+        memset(buf + ito + i * FILE_OBJECT_ALIGN_SIZE, 0, FILE_OBJECT_ALIGN_SIZE);
+    struct file_object *root = (struct file_object *)(buf + ito);
+    root->in_use = 1;
+    root->size = bs;
+    root->inner_file = 0;
+    root->name[0] = '$';
+    root->descriptor = S_IFDIR | 0777;
+    root->first_block = 0;
+    root->uid = 0;
+    root->gid = 0;
+    root->atime_sec = root->mtime_sec = root->ctime_sec = (uint64_t)now;
+    for (size_t i = 0; i < nregions; i++) {
+        struct file_object *fo =
+            (struct file_object *)(buf + ito + (i + 1) * FILE_OBJECT_ALIGN_SIZE);
+        fo->in_use = 1;
+        fo->size = (uint32_t)(regions[i].count * bs);
+        fo->inner_file = 0;
+        snprintf((char *)fo->name, sizeof(fo->name), "region-%zu", i);
+        fo->descriptor = S_IFREG | 0644;
+        fo->first_block = (uint32_t)regions[i].start;
+        fo->uid = 0;
+        fo->gid = 0;
+        fo->atime_sec = fo->mtime_sec = fo->ctime_sec = (uint64_t)now;
+    }
+
+    /* block bitmap: bit per data block, block 0 (root) always used */
+    size_t bitmap_bytes = (size_t)(bmb * bs);
+    memset(buf + bmo, 0, bitmap_bytes);
+    buf[bmo] = 0x01;
+    for (size_t i = 0; i < nregions; i++) {
+        uint64_t lim = regions[i].start + regions[i].count;
+        if (lim > nblk) lim = nblk;
+        for (uint64_t blk = regions[i].start; blk < lim; blk++)
+            buf[bmo + blk / 8] |= (unsigned char)(1u << (blk % 8));
+    }
+
+    if (in_place) {
+        if (pwrite(orig_fd, buf, size, 0) != (ssize_t)size) {
+            perror("pwrite"); free(buf); return 8;
+        }
+        fdatasync(orig_fd);
+        printf("  rebuilt metadata in place (%llu-byte head, data untouched)\n",
+               (unsigned long long)dbo_formula);
+    } else {
+        int fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) { perror("open"); free(buf); return 8; }
+        size_t off = 0;
+        while (off < new_size) {
+            ssize_t w = write(fd, buf + off, new_size - off);
+            if (w <= 0) { perror("write"); close(fd); free(buf); return 8; }
+            off += (size_t)w;
+        }
+        fdatasync(fd);
+        close(fd);
+        printf("  rebuilt image written to %s (%llu bytes, input untouched)\n",
+               out_path, (unsigned long long)new_size);
+    }
+    free(buf);
     return 0;
 }
 
@@ -554,14 +974,23 @@ static int mode_b_carve(const unsigned char *img, size_t size,
 static void print_usage(const char *prog)
 {
     fprintf(stderr,
-            "usage: %s [-b blocksize] [-c] [-t pct] [-f|--fix] [-v|--version]\n"
+            "usage: %s [-b blocksize] [-c] [-t pct] [-o file] [-f|--fix] [-v|--version]\n"
             "            <image|blockdev>\n"
             "  -b <bs>       force block size (default: auto-detect 1024/2048/4096)\n"
             "  -c            force carving mode even if metadata is readable\n"
             "  -t <pct>      sparse threshold percent 1..50 (default 5)\n"
-            "  -f, --fix     write reconstructed superblock offset fields back\n"
-            "                to the device/image (repair mode)\n"
+            "  -o, --out <file>  save a repaired/rebuilt copy to <file> instead of\n"
+            "                writing the input in place\n"
+            "  -f, --fix     repair: write reconstructed offsets back to the\n"
+            "                device/image (metadata mode), rebuild metadata in\n"
+            "                place (enough head padding), or save a new image\n"
             "  -v, --version print version and exit\n"
+            "processing priority:\n"
+            "  1 metadata found            : carve + compare, fix offsets on request\n"
+            "  2 metadata gone, padding ok : carve (rebuild in place with --fix)\n"
+            "  3 metadata gone, no padding : carve, rebuild metadata, save new image\n"
+            "  4 foreign filesystem        : hand off to its fsck, else exit\n"
+            "  5 no padding at all         : carve, rebuild metadata, save new image\n"
             "exit status: 0 = clean or fixed, 1 = problems remain, 8 = I/O error,\n"
             "             16 = usage error\n",
             prog);
@@ -570,6 +999,7 @@ static void print_usage(const char *prog)
 int main(int argc, char **argv)
 {
     const char *path = NULL;
+    const char *output_path = NULL;
     uint32_t forced_bs = 0;
     int force_carve = 0, do_fix = 0;
     int threshold_pct = DEFAULT_SPARSE_THRESHOLD_PCT;
@@ -585,6 +1015,9 @@ int main(int argc, char **argv)
                 fprintf(stderr, "sparse threshold must be 1..50\n");
                 return 16;
             }
+        } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--out") == 0) {
+            if (i + 1 >= argc) { print_usage(argv[0]); return 16; }
+            output_path = argv[++i];
         } else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fix") == 0) {
             do_fix = 1;
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
@@ -646,25 +1079,64 @@ int main(int argc, char **argv)
            S_ISBLK(st.st_mode) ? ", block device" : "");
 
     struct sb_view sb = detect_metadata(img, size, forced_bs);
+
+    /* ---- priority 1: metadata found - carve first, then compare/fix ------ */
     if (sb.valid) {
         printf("hidden data: found (0x55AA..0xAA55 ok)\n");
         printf("superblock  : offset %llu, block_size=%u, block_count=%u (YUKI ok)\n",
                (unsigned long long)sb.sb_offset, sb.block_size, sb.block_count);
         if (!force_carve) {
-            int rc = mode_a_scan(img, size, &sb, do_fix, fd);
-            if (rc < 0) { /* fix write failed */
+            uint64_t ito_recon = 0;
+            int rc = mode_a_scan(img, size, &sb, &ito_recon);
+            if (do_fix) {
+                /* plain file whose hidden data sits too close to offset 0:
+                   pad the head to partition alignment and save a NEW image */
+                int need_pad = !S_ISBLK(st.st_mode) && sb.hd_offset &&
+                               sb.hd_offset < PARTITION_ALIGN_SIZE;
+                if (need_pad || output_path) {
+                    char auto_name[4096];
+                    const char *out = output_path;
+                    if (!out) {
+                        snprintf(auto_name, sizeof(auto_name), "%s.fsck.img", path);
+                        out = auto_name;
+                    }
+                    if (need_pad) {
+                        printf("\n=== head padding too small - pad-and-save mode ===\n");
+                        if (emit_padded_image(img, size, &sb, ito_recon, out) != 0) {
+                            if (mapped) munmap(img, size); else free(img);
+                            close(fd);
+                            return 8;
+                        }
+                    } else {
+                        printf("\n=== save repaired copy ===\n");
+                        if (emit_fixed_copy(img, size, &sb, ito_recon, out) != 0) {
+                            if (mapped) munmap(img, size); else free(img);
+                            close(fd);
+                            return 8;
+                        }
+                    }
+                    if (mapped) munmap(img, size); else free(img);
+                    close(fd);
+                    return 0;
+                }
+                int fixed = fix_sb(fd, img + sb.sb_offset, sb.block_size,
+                                   sb.block_count, size, ito_recon, sb.sb_offset);
+                if (fixed < 0) {
+                    if (mapped) munmap(img, size); else free(img);
+                    close(fd);
+                    return 8;
+                }
+                printf("  [fsck] superblock offset fields: %d inconsistent -> written back\n",
+                       fixed);
+                fdatasync(fd);
                 if (mapped) munmap(img, size); else free(img);
                 close(fd);
-                return 8;
+                printf("\n=== done (metadata mode, repaired) ===\n");
+                return 0;
             }
             if (mapped) munmap(img, size); else free(img);
-            if (do_fix) {
-                fdatasync(fd);
-                printf("\n=== done (metadata mode, repaired) ===\n");
-            } else {
-                printf("\n=== done (metadata mode) ===\n");
-            }
             close(fd);
+            printf("\n=== done (metadata mode) ===\n");
             /* fsck exit status: 1 if problems were found but not fixed */
             return rc ? 1 : 0;
         }
@@ -673,9 +1145,83 @@ int main(int argc, char **argv)
         printf("hidden data / superblock: NOT FOUND (assumed destroyed)\n");
         if (forced_bs)
             printf("using user-supplied block size: %u\n", forced_bs);
-    }
 
-    mode_b_carve(img, size, forced_bs, threshold_pct);
+        /* ---- priority 4: foreign filesystem? hand off, else exit ------- */
+        const char *fsck_prog = NULL;
+        const char *fname = detect_foreign_fs(img, size, &fsck_prog);
+        if (fname) {
+            if (mapped) munmap(img, size); else free(img);
+            close(fd);
+            return dispatch_foreign_fs(fsck_prog, fname, argv);
+        }
+
+        /* ---- priority 2/3/5: carve, then rebuild as needed ------------- */
+        size_t Z = head_zero_len(img, size);
+        struct region *regions = NULL;
+        size_t nregions = 0;
+        uint32_t carve_bs = 0;
+        mode_b_carve(img, size, forced_bs, threshold_pct,
+                     &regions, &nregions, &carve_bs);
+
+        if (regions && nregions && carve_bs) {
+            uint64_t data_len = (uint64_t)size - Z;
+            uint64_t nblk = data_len / carve_bs;
+            uint64_t it_storage = ((nblk * FILE_OBJECT_ALIGN_SIZE + carve_bs - 1) /
+                                   carve_bs) * carve_bs;
+            uint64_t bmb = (((nblk + 7) / 8) + carve_bs - 1) / carve_bs;
+            uint64_t dbo_formula = (uint64_t)carve_bs * 3 +
+                                   it_storage + bmb * carve_bs;
+
+            if (Z >= dbo_formula) {
+                if (do_fix && !output_path) {
+                    /* priority 2: enough head padding - rebuild in place */
+                    printf("\n=== enough head padding - rebuilding metadata in place ===\n");
+                    int r = rebuild_image(img, size, carve_bs, Z, regions, nregions,
+                                          1, fd, NULL);
+                    if (r != 0) {
+                        free(regions);
+                        if (mapped) munmap(img, size); else free(img);
+                        close(fd);
+                        return 8;
+                    }
+                } else if (output_path) {
+                    printf("\n=== enough head padding - saving rebuilt copy ===\n");
+                    int r = rebuild_image(img, size, carve_bs, Z, regions, nregions,
+                                          0, -1, output_path);
+                    if (r != 0) {
+                        free(regions);
+                        if (mapped) munmap(img, size); else free(img);
+                        close(fd);
+                        return 8;
+                    }
+                } else {
+                    printf("\n[fsck] head padding (%zu bytes) is sufficient to rebuild "
+                           "metadata in place; run with -f/--fix to write it back\n", Z);
+                }
+            } else {
+                /* priority 3/5: no/insufficient head padding - new image */
+                char auto_name[4096];
+                const char *out = output_path;
+                if (!out) {
+                    snprintf(auto_name, sizeof(auto_name), "%s.fsck.img", path);
+                    out = auto_name;
+                }
+                if (Z == 0)
+                    printf("\n=== no head padding - rebuilding metadata, saving new image ===\n");
+                else
+                    printf("\n=== head padding too small - rebuilding metadata, saving new image ===\n");
+                int r = rebuild_image(img, size, carve_bs, Z, regions, nregions,
+                                      0, -1, out);
+                if (r != 0) {
+                    free(regions);
+                    if (mapped) munmap(img, size); else free(img);
+                    close(fd);
+                    return 8;
+                }
+            }
+        }
+        free(regions);
+    }
 
     if (mapped) munmap(img, size); else free(img);
     close(fd);

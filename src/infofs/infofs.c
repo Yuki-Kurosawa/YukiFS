@@ -108,35 +108,52 @@ int extract_info(const char *device_path, bool no_info)
         return 1;
     }
 
-    // Allocate a buffer to read the file content
-    unsigned char *buffer = (unsigned char *)malloc(16*1024);
+    // Allocate a buffer to read the whole file content (hidden data may sit
+    // at 1 MiB partition alignment on padded/disk images, not just the first
+    // 16 KiB)
+    if (file_size <= 0) {
+        fprintf(stderr, "Error: Empty file '%s'\n", device_path);
+        close(fd);
+        return 1;
+    }
+    unsigned char *buffer = (unsigned char *)malloc((size_t)file_size);
     if (buffer == NULL) {
         fprintf(stderr, "Error: Cannot allocate memory for file content\n");
         close(fd);
         return 1;
     }
 
-    // Read first 16KB of file into the buffer
-    ssize_t bytes_read = read(fd, buffer, 16*1024);
-    if (bytes_read == -1) {
-        fprintf(stderr, "Error: Cannot read from '%s': %s\n", device_path, strerror(errno));
-        free(buffer);
-        close(fd);
-        return 1;
+    // Read the file content into the buffer
+    size_t total_read = 0;
+    while (total_read < (size_t)file_size) {
+        ssize_t r = read(fd, buffer + total_read, (size_t)file_size - total_read);
+        if (r < 0) {
+            if (errno == EINTR) continue;
+            fprintf(stderr, "Error: Cannot read from '%s': %s\n", device_path, strerror(errno));
+            free(buffer);
+            close(fd);
+            return 1;
+        }
+        if (r == 0) break; /* short file */
+        total_read += (size_t)r;
     }
+    ssize_t bytes_read = (ssize_t)total_read;
 
-    // found where 0x55AA and 0xAA55 is to locate hidden data  
+    // Locate the hidden data header: 0x55AA..0xAA55(@+144). Scan the WHOLE
+    // file (a padded/partition image puts the header at 1 MiB), but require
+    // the structural end magic at +144 so data blocks that happen to contain
+    // 0x55 0xAA are not mistaken for a header. Take the FIRST valid one.
     int64_t hidden_data_offset = -1;
     int64_t hidden_data_offset_end = -1;
 
     for (off_t i = 0; i < bytes_read - 1; ++i) {
-        if (buffer[i] == 0x55 && buffer[i + 1] == 0xAA) {
+        if (buffer[i] == 0x55 && buffer[i + 1] == 0xAA &&
+            i + 146 <= bytes_read &&
+            buffer[i + 144] == 0xAA && buffer[i + 145] == 0x55) {
             if(!no_info) printf("Found sequence 0x55AA at offset %ld\n", i);
             hidden_data_offset = i;
-        }
-        if (buffer[i] == 0xAA && buffer[i + 1] == 0x55) {
-            if(!no_info) printf("Found sequence 0xAA55 at offset %ld\n", i);
-            hidden_data_offset_end = i;
+            hidden_data_offset_end = i + 144;
+            break;
         }
     }
 
@@ -176,10 +193,11 @@ int extract_info(const char *device_path, bool no_info)
         printf("  End Magic Number: %02X%02X\n", hidden_data->hidden_end_magic_number[0], hidden_data->hidden_end_magic_number[1]);
     }
 
+    uint64_t sbo = hidden_data->superblock_offset;
     free(buffer);
 
     // seek to superblock offset
-    if (lseek(fd, hidden_data->superblock_offset, SEEK_SET) == -1) {
+    if (lseek(fd, sbo, SEEK_SET) == -1) {
         fprintf(stderr, "Error: Cannot seek to the beginning of '%s': %s\n", device_path, strerror(errno));
         free(buffer);
         close(fd);
