@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: MIT
 
+/* Kernel version coverage (LINUX_VERSION_CODE branches):
+ *   <=6.11 : timespec64 inode timestamps (legacy 6.6 target).
+ *   6.12+  : i_atime_sec/i_mtime_sec/i_ctime_sec (yuki_ts_* helpers below).
+ *   6.18+  : ->mkdir returns struct dentry *; mount via fs_context
+ *            (yukifs_mkdir / yukifs_init_fs_context in inode.c).
+ *   7.0+   : i_state became 'struct inode_state_flags' (I_NEW check now
+ *            goes through inode_state_read_once()); u64 i_ino prints use
+ *            %llu + cast (verified by in-tree build of 7.0.5/7.1.13).
+ *   7.3+   : ->create() dropped the bool "excl" argument (yukifs_create
+ *            below). These are the 7.x-visible changes for YukiFS.
+ */
+
 #include "file.h"
 #include <linux/string.h>
 #include <linux/uidgid.h>
@@ -13,7 +25,8 @@
  * YukiFS persists whole-second timestamps, so both sides are plain
  * sec/nsec(0) mappings.  Every inode-timestamp access goes through these
  * helpers; the 6.12 branch is byte-for-byte what was validated on u1
- * (6.12.107+deb13), the legacy branch targets 6.6 (compile-verified). */
+ * (6.12.107+deb13), the legacy branch targets 6.6 (compile-verified).
+ * The i_atime_sec layout is unchanged through 7.3 (no porting entry). */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,12,0)
 #define yuki_ts_set(inode, a, m, c) \
     do { \
@@ -156,7 +169,7 @@ static int yukifs_open(struct inode *inode, struct file *file)
 {
     struct file_object *fo = (struct file_object *)inode->i_private;
     if (!fo) {
-        printk(KERN_ERR "YukiFS: open - inode %lu has no file_object\n", inode->i_ino);
+        printk(KERN_ERR "YukiFS: open - inode %llu has no file_object\n", (unsigned long long)inode->i_ino);
         return -EIO;
     }
     printk(KERN_INFO "YukiFS: open called %s %s\n", file->f_path.dentry->d_name.name,fo->name);
@@ -341,17 +354,30 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
     return 0;
 }
 
-static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry *entry, ushort umode_t, bool excl)
+/* 7.3 dropped the bool "excl" argument from ->create(): the operation now
+   always provides O_EXCL semantics (i.e. must fail with -EEXIST if the file
+   exists). YukiFS is a local filesystem - the VFS guarantees the file does
+   not exist, and the argument was already unused (void)excl. 7.0/7.1/7.2
+   keep the 6.18-era signature with the extra bool. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0)
+static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,
+                         struct dentry *entry, umode_t mode)
+#else
+static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,
+                         struct dentry *entry, umode_t mode, bool excl)
+#endif
 {
     (void)mnt;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7,3,0)
     (void)excl;
-    printk(KERN_INFO "YukiFS: create called %s %s %d\n", entry->d_name.name,((struct file_object*)dir->i_private)->name,umode_t);
+#endif
+    printk(KERN_INFO "YukiFS: create called %s %s %d\n", entry->d_name.name,((struct file_object*)dir->i_private)->name, mode);
 
     struct superblock_info *sbi = dir->i_sb->s_fs_info;
     struct file_object * dirobj = (struct file_object *)dir->i_private;
 
     // due to no sub directory support, we only support creating files
-    if (S_ISDIR(umode_t)) {
+    if (S_ISDIR(mode)) {
         return -EPERM;
     }
 
@@ -483,7 +509,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
     new_fo[ii].in_use = 1;
     new_fo[ii].size = 0;
     new_fo[ii].inner_file = 0;
-    new_fo[ii].descriptor = umode_t;
+    new_fo[ii].descriptor = mode;
     /* owner = creating process; .val is equivalent to from_kuid(&init_user_ns,
        current_fsuid()) and avoids the GPL-only init_user_ns export (6.18+) */
     new_fo[ii].uid = current_fsuid().val;
@@ -534,7 +560,11 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,struct dentry 
         kfree(inode_table);
         return -ENOMEM;
     }
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(7,0,0)
+    if (inode_state_read_once(inode) & I_NEW) {
+#else
     if (inode->i_state & I_NEW) {
+#endif
         yukifs_fill_inode(dir->i_sb, inode, fo_copy, ii);
         unlock_new_inode(inode);
     } else {
@@ -735,7 +765,11 @@ static int yukifs_mkdir_int(struct mnt_idmap *mnt, struct inode *dir, struct den
         kfree(inode_table);
         return -ENOMEM;
     }
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(7,0,0)
+    if (inode_state_read_once(inode) & I_NEW) {
+#else
     if (inode->i_state & I_NEW) {
+#endif
         yukifs_fill_inode(dir->i_sb, inode, fo_copy, ii);
         unlock_new_inode(inode);
     } else {
@@ -909,7 +943,11 @@ static int yukifs_symlink(struct mnt_idmap *mnt, struct inode *dir, struct dentr
     /* reuse the create() path: allocates the inode-table slot, the data block
        and the directory slot, then binds the dentry (S_IFLNK passes the
        S_ISDIR() guard in create()). */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0)
+    int rc = yukifs_create(mnt, dir, entry, S_IFLNK | 0777);
+#else
     int rc = yukifs_create(mnt, dir, entry, S_IFLNK | 0777, false);
+#endif
     if (rc)
         return rc;
 
@@ -1104,11 +1142,11 @@ static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct
     struct file_object *fo = (struct file_object *)inode->i_private;
 
     if (!fo) {
-        printk(KERN_ERR "YukiFS: getattr - inode %lu has no file_object\n", inode->i_ino);
+        printk(KERN_ERR "YukiFS: getattr - inode %llu has no file_object\n", (unsigned long long)inode->i_ino);
         return -EIO;
     }
 
-    printk(KERN_INFO "YukiFS: getattr dentry: %s inode: %s with inode_num %ld\n", path->dentry->d_name.name,fo->name,inode->i_ino);
+    printk(KERN_INFO "YukiFS: getattr dentry: %s inode: %s with inode_num %lld\n", path->dentry->d_name.name,fo->name,(long long)inode->i_ino);
     printk("  getattr(): Name: %s, Size: %u, Descriptor: %o, First Block: %u, Inner: %u\n", 
         fo->name,fo->size, fo->descriptor,fo->first_block,fo->inner_file);
 
@@ -1180,7 +1218,7 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
 
     struct file_object *fo = (struct file_object*)parent->i_private;
 
-    printk(KERN_INFO "YukiFS: lookup called for '%s' in directory inode %lu\n", name, parent->i_ino);
+    printk(KERN_INFO "YukiFS: lookup called for '%s' in directory inode %llu\n", name, (unsigned long long)parent->i_ino);
 
     /* names longer than the on-disk buffer can never match a stored name */
     if (len >= FS_MAX_LEN)
@@ -1266,7 +1304,11 @@ static struct dentry *yukifs_lookup(struct inode *parent, struct dentry *dentry,
                     kfree(inode_table);
                     return ERR_PTR(-ENOMEM);
                 }
-                if (inode->i_state & I_NEW) {
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(7,0,0)
+    if (inode_state_read_once(inode) & I_NEW) {
+#else
+    if (inode->i_state & I_NEW) {
+#endif
                     yukifs_fill_inode(parent->i_sb, inode, ffo_copy, resolved_idx);
                     unlock_new_inode(inode);
                 } else {
@@ -1808,8 +1850,8 @@ static ssize_t yukifs_write(struct file *file, const char __user *buf, size_t le
     struct superblock_info *sbi = sb->s_fs_info;
     uint32_t block_size = sb->s_blocksize;
 
-    printk(KERN_INFO "YukiFS: write called for inode %lu, offset %lld, len %zu\n",
-           inode->i_ino, *offset, len);
+    printk(KERN_INFO "YukiFS: write called for inode %llu, offset %lld, len %zu\n",
+           (unsigned long long)inode->i_ino, *offset, len);
 
     if (!fo) {
         printk(KERN_ERR "YukiFS: write - file_object is NULL\n");
@@ -2152,7 +2194,11 @@ int yukifs_init_root(struct super_block *sb)
         printk(KERN_ERR "YukiFS: inode allocation failed\n");
         return -ENOMEM;
     }
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(7,0,0)
+    if (inode_state_read_once(root) & I_NEW) {
+#else
     if (root->i_state & I_NEW) {
+#endif
         yukifs_fill_inode(sb, root, root_fo, 0);
         unlock_new_inode(root);
     } else {

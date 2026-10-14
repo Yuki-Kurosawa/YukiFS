@@ -51,7 +51,8 @@ static struct super_operations const yukifs_super_ops = {
     .statfs = yukifs_statfs,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,18,0)
     /* 6.18 removed generic_delete_inode; leaving drop_inode NULL gives the
-       same default delete semantics without referencing the old helper. */
+       same default delete semantics without referencing the old helper.
+       (super_operations unchanged through 7.3 for YukiFS.) */
     .drop_inode = generic_delete_inode,
 #endif
     .destroy_inode = yukifs_destroy_inode,
@@ -207,7 +208,8 @@ static int yukifs_fill_super(struct super_block *sb, void *data, int silent)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
 /* 6.18 removed mount_bdev(); block-device filesystems now mount through the
    fs_context API: init_fs_context + get_tree_bdev. yukifs_fill_super() never
-   uses data/silent, so a small adapter is enough. */
+   uses data/silent, so a small adapter is enough. (Unchanged through 7.3:
+   the fs_context mount API is stable.) */
 static int yukifs_fill_super_fc(struct super_block *sb, struct fs_context *fc)
 {
     (void)fc;

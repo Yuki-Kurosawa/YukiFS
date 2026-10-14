@@ -1,8 +1,14 @@
-
 config YUKI_FS
-    tristate "Enable yukifs filesystem support"
-    default m
-    help
-        This enables the yukifs filesystem support in the kernel.
+	tristate "YukiFS filesystem support"
+	depends on BLOCK
+	default m
+	help
+	  YukiFS is a custom POSIX-flavoured FAT-like filesystem
+	  (POSIX mode bits + uid/gid + atime/mtime/ctime, 64-char names).
+
+	  To compile this filesystem support as a module, choose M here:
+	  the module will be called yukifs.
+
+	  If unsure, say N.
 
 endmenu

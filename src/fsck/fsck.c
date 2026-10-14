@@ -39,8 +39,8 @@
 #include <errno.h>
 
 #include "../../include/file_table.h"
+#include "../../include/version.h"
 
-#define FSCK_VERSION "0.1.0"
 #define HD_SUPERBLOCK_OFFSET_POS 136
 #define CANDIDATE_BLOCK_SIZES { 1024, 2048, 4096 }
 #define DEFAULT_SPARSE_THRESHOLD_PCT 5
@@ -1066,7 +1066,7 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fix") == 0) {
             do_fix = 1;
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
-            printf("fsck.yukifs %s (YukiFS filesystem checker)\n", FSCK_VERSION);
+            printf("fsck.yukifs %s (YukiFS filesystem checker)\n", FSCK_VERSION_STRING);
             return 0;
         } else if (argv[i][0] != '-') {
             path = argv[i];

@@ -16,3 +16,6 @@
 mkfs.yukifs
 mkfs.o
 *.img
+
+# kbuild per-target command files
+.*.cmd
