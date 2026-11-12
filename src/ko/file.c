@@ -9,13 +9,26 @@
  *            goes through inode_state_read_once()); u64 i_ino prints use
  *            %llu + cast (verified by in-tree build of 7.0.5/7.1.13).
  *   7.3+   : ->create() dropped the bool "excl" argument (yukifs_create
- *            below). These are the 7.x-visible changes for YukiFS.
+ *            below).
+ *   7.4+   : every ->mnt_idmap argument became "const struct mnt_idmap *"
+ *            (create/mkdir/symlink/getattr/rename/setattr, and setattr_copy);
+ *            YUKIFS_IDMAP_T below wraps the constness.
  */
 
 #include "file.h"
 #include <linux/string.h>
 #include <linux/uidgid.h>
 #include <linux/cred.h>
+
+/* 7.4+ made every mnt_idmap parameter const (fs.h: ->create/->mkdir/->symlink/
+ * ->rename/->setattr/->getattr plus setattr_copy).  Wrap the type so the
+ * signatures stay single-line across kernels; 7.3 and earlier keep the
+ * non-const pointer. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7,4,0)
+#define YUKIFS_IDMAP_T const struct mnt_idmap
+#else
+#define YUKIFS_IDMAP_T struct mnt_idmap
+#endif
 
 /* Inode timestamps differ between kernel generations:
  *   6.12+  : struct inode carries i_atime_sec/i_mtime_sec/i_ctime_sec (u64)
@@ -360,10 +373,10 @@ static int yukifs_iterate_shared(struct file *file, struct dir_context *ctx)
    not exist, and the argument was already unused (void)excl. 7.0/7.1/7.2
    keep the 6.18-era signature with the extra bool. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0)
-static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,
+static int yukifs_create(YUKIFS_IDMAP_T *mnt, struct inode *dir,
                          struct dentry *entry, umode_t mode)
 #else
-static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,
+static int yukifs_create(YUKIFS_IDMAP_T *mnt, struct inode *dir,
                          struct dentry *entry, umode_t mode, bool excl)
 #endif
 {
@@ -585,7 +598,7 @@ static int yukifs_create(struct mnt_idmap *mnt, struct inode *dir,
 
 /* --- directories --- */
 
-static int yukifs_mkdir_int(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
+static int yukifs_mkdir_int(YUKIFS_IDMAP_T *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
 {
     (void)mnt;
     printk(KERN_INFO "YukiFS: mkdir called %s %s %d\n", entry->d_name.name,
@@ -790,7 +803,7 @@ static int yukifs_mkdir_int(struct mnt_idmap *mnt, struct inode *dir, struct den
    an unhashed dentry, which is not the case here because yukifs_mkdir_int()
    already d_add()ed it), on error return ERR_PTR(). */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
-static struct dentry *yukifs_mkdir(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
+static struct dentry *yukifs_mkdir(YUKIFS_IDMAP_T *mnt, struct inode *dir, struct dentry *entry, umode_t mode)
 {
     int rc = yukifs_mkdir_int(mnt, dir, entry, mode);
     if (rc)
@@ -926,7 +939,7 @@ static int yukifs_rmdir(struct inode *dir, struct dentry *entry)
 
 /* --- symbolic links --- */
 
-static int yukifs_symlink(struct mnt_idmap *mnt, struct inode *dir, struct dentry *entry,
+static int yukifs_symlink(YUKIFS_IDMAP_T *mnt, struct inode *dir, struct dentry *entry,
                           const char *symname)
 {
     (void)mnt;
@@ -1136,7 +1149,7 @@ static int yukifs_link(struct dentry *old_dentry, struct inode *dir,
     return 0;
 }
 
-static int yukifs_getattr(struct mnt_idmap *mnt, const struct path *path, struct kstat *stat,u32 mask, unsigned int query_flags)
+static int yukifs_getattr(YUKIFS_IDMAP_T *mnt, const struct path *path, struct kstat *stat,u32 mask, unsigned int query_flags)
 {
     struct inode *inode = path->dentry->d_inode;
     struct file_object *fo = (struct file_object *)inode->i_private;
@@ -1522,7 +1535,7 @@ static int yukifs_unlink(struct inode *parent,struct dentry *dentry)
     return 0;
 }
 
-static int yukifs_rename(struct mnt_idmap *mnt, struct inode *old_dir, struct dentry *old_dentry,
+static int yukifs_rename(YUKIFS_IDMAP_T *mnt, struct inode *old_dir, struct dentry *old_dentry,
                          struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
     (void)mnt;
@@ -2019,7 +2032,7 @@ static int yukifs_update_statfs(struct super_block *sb, uint32_t inode_idx,
     return 0;
 }
 
-static int yukifs_setattr(struct mnt_idmap *mnt, struct dentry *dentry,
+static int yukifs_setattr(YUKIFS_IDMAP_T *mnt, struct dentry *dentry,
                           struct iattr *attr)
 {
     struct inode *inode = d_inode(dentry);
